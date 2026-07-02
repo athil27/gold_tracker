@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gold Price Tracker</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#d4af37">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+  :root{
+    --bg:#0d0d0d; --card:#1a1a1a; --gold:#d4af37; --gold-dim:#8a6f1f;
+    --text:#f2f2f2; --muted:#9a9a9a; --green:#4caf50; --red:#e05252;
+    --border:#2a2a2a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding-bottom:40px;
+  }
+  header{
+    padding:22px 20px 16px; text-align:center; border-bottom:1px solid var(--border);
+  }
+  header h1{margin:0; font-size:20px; letter-spacing:0.5px; color:var(--gold); font-weight:700;}
+  header p{margin:6px 0 0; font-size:12px; color:var(--muted);}
+  .status-row{
+    display:flex; justify-content:center; align-items:center; gap:8px;
+    margin-top:10px; font-size:12px; color:var(--muted);
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
+  .dot.live{background:var(--green); box-shadow:0 0 6px var(--green);}
+  .dot.err{background:var(--red);}
+  main{padding:16px; max-width:480px; margin:0 auto;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:16px 14px; position:relative; overflow:hidden;
+  }
+  .card::before{
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, var(--gold-dim), var(--gold));
+  }
+  .card .karat{font-size:12px; color:var(--gold); font-weight:700; letter-spacing:1px;}
+  .card .currency-label{font-size:10px; color:var(--muted); margin-top:2px;}
+  .card .amount{font-size:22px; font-weight:700; margin-top:8px; color:var(--text);}
+  .card .unit{font-size:11px; color:var(--muted);}
+  .full-card{grid-column:1 / -1;}
+  .controls{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:16px; margin-bottom:16px;
+  }
+  .controls h2{font-size:13px; color:var(--gold); margin:0 0 12px; letter-spacing:0.5px;}
+  .row{display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px;}
+  .row:last-child{border-bottom:none;}
+  select, button.btn{
+    background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px;
+    padding:8px 12px; font-size:13px;
+  }
+  button.btn{cursor:pointer;}
+  .primary-btn{
+    width:100%; background:var(--gold); color:#0d0d0d; border:none; border-radius:12px;
+    padding:14px; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:0.3px;
+  }
+  .primary-btn:active{opacity:0.85;}
+  .switch{position:relative; width:42px; height:24px;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider{
+    position:absolute; cursor:pointer; inset:0; background:#333; border-radius:24px; transition:.2s;
+  }
+  .slider::before{
+    content:''; position:absolute; height:18px; width:18px; left:3px; bottom:3px;
+    background:white; border-radius:50%; transition:.2s;
+  }
+  input:checked + .slider{background:var(--gold);}
+  input:checked + .slider::before{transform:translateX(18px);}
+  .log{
+    background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px;
+  }
+  .log h2{font-size:13px; color:var(--gold); margin:0 0 10px;}
+  .log-entry{font-size:12px; color:var(--muted); padding:6px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;}
+  .log-entry:last-child{border-bottom:none;}
+  .note{font-size:11px; color:var(--muted); text-align:center; margin-top:18px; line-height:1.5; padding:0 10px;}
+  .warn{
+    background:#2a220a; border:1px solid var(--gold-dim); color:#e8d38a; font-size:12px;
+    border-radius:10px; padding:10px 12px; margin-bottom:16px; line-height:1.5;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>◆ GOLD PRICE TRACKER</h1>
+  <p>22K &amp; 24K per gram · INR / SAR</p>
+  <div class="status-row">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusText">Loading...</span>
+  </div>
+</header>
+
+<main>
+
+  <div class="warn" id="permWarn" style="display:none;">
+    Notifications are off. Tap "Enable Notifications" below so the 2-hourly popup actually appears.
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="karat">24K GOLD</div>
+      <div class="currency-label">INR per gram</div>
+      <div class="amount" id="inr24">--</div>
+    </div>
+    <div class="card">
+      <div class="karat">24K GOLD</div>
+      <div class="currency-label">SAR per gram</div>
+      <div class="amount" id="sar24">--</div>
+    </div>
+    <div class="card">
+      <div class="karat">22K GOLD</div>
+      <div class="currency-label">INR per gram</div>
+      <div class="amount" id="inr22">--</div>
+    </div>
+    <div class="card">
+      <div class="karat">22K GOLD</div>
+      <div class="currency-label">SAR per gram</div>
+      <div class="amount" id="sar22">--</div>
+    </div>
+    <div class="card full-card">
+      <div class="karat">SPOT PRICE</div>
+      <div class="currency-label">USD per troy ounce (XAU)</div>
+      <div class="amount" id="spotUsd">--</div>
+    </div>
+  </div>
+
+  <button class="primary-btn" id="refreshBtn">Check Price Now</button>
+
+  <div class="controls" style="margin-top:16px;">
+    <h2>SETTINGS</h2>
+    <div class="row">
+      <span>Notifications</span>
+      <label class="switch">
+        <input type="checkbox" id="notifToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="row">
+      <span>Check interval</span>
+      <select id="intervalSelect">
+        <option value="30">Every 30 min</option>
+        <option value="60">Every 1 hour</option>
+        <option value="120" selected>Every 2 hours</option>
+        <option value="240">Every 4 hours</option>
+      </select>
+    </div>
+    <div class="row">
+      <span>Last updated</span>
+      <span id="lastUpdated" style="color:var(--muted);">--</span>
+    </div>
+    <div class="row">
+      <span>Next check</span>
+      <span id="nextCheck" style="color:var(--muted);">--</span>
+    </div>
+  </div>
+
+  <div class="log">
+    <h2>RECENT CHECKS</h2>
+    <div id="logList"><div class="log-entry"><span>No checks yet</span></div></div>
+  </div>
+
+  <div class="note">
+    Prices from gold-api.com (live XAU spot) and open.er-api.com (USD→INR/SAR rates).
+    22K uses 91.67% purity of 24K. This is a reference tool, not a trading or jewellery-billing price — actual jeweller rates add making charges and may differ slightly.
+    <br><br>
+    For popups to fire every 2 hours reliably, keep this app installed to your home screen and open/backgrounded (not force-closed). Android may still delay background timers on some phones — if that happens, disable battery optimization for this app/browser in phone settings.
+  </div>
+
+</main>
+
+<script>
+const GRAMS_PER_OZ = 31.1034768;
+const $ = (id) => document.getElementById(id);
+let intervalHandle = null;
+let countdownHandle = null;
+let nextCheckTime = null;
+
+function fmt(n){
+  return Number(n).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function setStatus(state, text){
+  const dot = $('statusDot');
+  dot.className = 'dot' + (state === 'live' ? ' live' : state === 'err' ? ' err' : '');
+  $('statusText').textContent = text;
+}
+
+async function fetchGoldPrice(){
+  setStatus('', 'Fetching price...');
+  try {
+    const goldRes = await fetch('https://api.gold-api.com/price/XAU');
+    if(!goldRes.ok) throw new Error('gold-api error ' + goldRes.status);
+    const goldData = await goldRes.json();
+    const usdPerOz = goldData.price ?? goldData.rate ?? goldData.rates?.XAU ?? goldData.data?.price;
+    if (!usdPerOz) throw new Error('Unexpected gold price response shape');
+
+    const fxRes = await fetch('https://open.er-api.com/v6/latest/USD');
+    if(!fxRes.ok) throw new Error('fx-api error ' + fxRes.status);
+    const fxData = await fxRes.json();
+    const inrRate = fxData.rates.INR;
+    const sarRate = fxData.rates.SAR;
+
+    const usd24k = usdPerOz / GRAMS_PER_OZ;
+    const usd22k = usd24k * (22/24);
+
+    const result = {
+      usdPerOz,
+      inr24: usd24k * inrRate,
+      inr22: usd22k * inrRate,
+      sar24: usd24k * sarRate,
+      sar22: usd22k * sarRate,
+      timestamp: Date.now()
+    };
+
+    renderResult(result);
+    saveToLog(result);
+    setStatus('live', 'Live');
+    localStorage.setItem('goldtracker_last', JSON.stringify(result));
+
+    if ($('notifToggle').checked && Notification.permission === 'granted') {
+      showNotification(result);
+    }
+    return result;
+  } catch (err) {
+    console.error(err);
+    setStatus('err', 'Fetch failed - will retry');
+    return null;
+  }
+}
+
+function renderResult(r){
+  $('spotUsd').textContent = '$' + fmt(r.usdPerOz);
+  $('inr24').textContent = '₹' + fmt(r.inr24);
+  $('inr22').textContent = '₹' + fmt(r.inr22);
+  $('sar24').textContent = 'SAR ' + fmt(r.sar24);
+  $('sar22').textContent = 'SAR ' + fmt(r.sar22);
+  $('lastUpdated').textContent = new Date(r.timestamp).toLocaleTimeString();
+}
+
+function showNotification(r){
+  const body = `24K: ₹${fmt(r.inr24)} / SAR ${fmt(r.sar24)}   ·   22K: ₹${fmt(r.inr22)} / SAR ${fmt(r.sar22)}  (per gram)`;
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.showNotification('Gold Price Update', {
+        body, icon: './icon-192.png', badge: './icon-192.png',
+        tag: 'gold-price', renotify: true
+      });
+    });
+  } else {
+    new Notification('Gold Price Update', { body, icon: './icon-192.png' });
+  }
+}
+
+function saveToLog(r){
+  let log = JSON.parse(localStorage.getItem('goldtracker_log') || '[]');
+  log.unshift(r);
+  log = log.slice(0, 8);
+  localStorage.setItem('goldtracker_log', JSON.stringify(log));
+  renderLog(log);
+}
+
+function renderLog(log){
+  const el = $('logList');
+  if (!log.length){ el.innerHTML = '<div class="log-entry"><span>No checks yet</span></div>'; return; }
+  el.innerHTML = log.map(r => `
+    <div class="log-entry">
+      <span>${new Date(r.timestamp).toLocaleString()}</span>
+      <span>24K ₹${fmt(r.inr24)} / SAR ${fmt(r.sar24)}</span>
+    </div>
+  `).join('');
+}
+
+function scheduleNext(){
+  clearInterval(intervalHandle);
+  clearInterval(countdownHandle);
+  const minutes = parseInt($('intervalSelect').value, 10);
+  const ms = minutes * 60 * 1000;
+  nextCheckTime = Date.now() + ms;
+  intervalHandle = setInterval(() => {
+    fetchGoldPrice();
+    nextCheckTime = Date.now() + ms;
+  }, ms);
+  countdownHandle = setInterval(updateCountdown, 1000);
+  localStorage.setItem('goldtracker_interval', minutes);
+}
+
+function updateCountdown(){
+  if (!nextCheckTime) return;
+  const diff = Math.max(0, nextCheckTime - Date.now());
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  $('nextCheck').textContent = `${h}h ${m}m ${s}s`;
+}
+
+async function requestNotifPermission(){
+  if (!('Notification' in window)) {
+    alert('This browser does not support notifications.');
+    return false;
+  }
+  if (Notification.permission === 'granted') return true;
+  const perm = await Notification.requestPermission();
+  return perm === 'granted';
+}
+
+async function registerServiceWorker(){
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js');
+      // Best-effort periodic background sync (Chrome/Android only, not guaranteed timing)
+      if ('periodicSync' in reg) {
+        try {
+          const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+          if (status.state === 'granted') {
+            await reg.periodicSync.register('gold-price-check', {
+              minInterval: 2 * 60 * 60 * 1000
+            });
+          }
+        } catch (e) { /* not supported, ignore */ }
+      }
+    } catch (e) {
+      console.error('SW registration failed', e);
+    }
+  }
+}
+
+$('refreshBtn').addEventListener('click', fetchGoldPrice);
+
+$('notifToggle').addEventListener('change', async (e) => {
+  if (e.target.checked) {
+    const granted = await requestNotifPermission();
+    if (!granted) {
+      e.target.checked = false;
+      $('permWarn').style.display = 'block';
+    } else {
+      $('permWarn').style.display = 'none';
+    }
+  }
+  localStorage.setItem('goldtracker_notif', e.target.checked ? '1' : '0');
+});
+
+$('intervalSelect').addEventListener('change', scheduleNext);
+
+// Init
+(function init(){
+  registerServiceWorker();
+
+  const cachedLast = localStorage.getItem('goldtracker_last');
+  if (cachedLast) renderResult(JSON.parse(cachedLast));
+
+  const cachedLog = JSON.parse(localStorage.getItem('goldtracker_log') || '[]');
+  renderLog(cachedLog);
+
+  const savedInterval = localStorage.getItem('goldtracker_interval');
+  if (savedInterval) $('intervalSelect').value = savedInterval;
+
+  const notifPref = localStorage.getItem('goldtracker_notif');
+  if (notifPref === '1' && Notification.permission === 'granted') {
+    $('notifToggle').checked = true;
+  } else if (notifPref === '1') {
+    $('permWarn').style.display = 'block';
+  }
+
+  fetchGoldPrice();
+  scheduleNext();
+})();
+</script>
+</body>
+</html>

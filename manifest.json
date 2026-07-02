@@ -1,0 +1,25 @@
+{
+  "name": "Gold Price Tracker - INR/SAR",
+  "short_name": "Gold Tracker",
+  "description": "Tracks 22K & 24K gold price per gram in INR and SAR, every 2 hours",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0d0d",
+  "theme_color": "#d4af37",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
