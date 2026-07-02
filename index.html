@@ -109,21 +109,25 @@
       <div class="karat">24K GOLD</div>
       <div class="currency-label">INR per gram</div>
       <div class="amount" id="inr24">--</div>
+      <div class="unit">spot: <span id="spotInr24">--</span></div>
     </div>
     <div class="card">
       <div class="karat">24K GOLD</div>
       <div class="currency-label">SAR per gram</div>
       <div class="amount" id="sar24">--</div>
+      <div class="unit">spot: <span id="spotSar24">--</span></div>
     </div>
     <div class="card">
       <div class="karat">22K GOLD</div>
       <div class="currency-label">INR per gram</div>
       <div class="amount" id="inr22">--</div>
+      <div class="unit">spot: <span id="spotInr22">--</span></div>
     </div>
     <div class="card">
       <div class="karat">22K GOLD</div>
       <div class="currency-label">SAR per gram</div>
       <div class="amount" id="sar22">--</div>
+      <div class="unit">spot: <span id="spotSar22">--</span></div>
     </div>
     <div class="card full-card">
       <div class="karat">SPOT PRICE</div>
@@ -232,7 +236,9 @@ async function fetchGoldPrice(){
       sar24: usd24k * sarRate * sarPremium,
       sar22: usd22k * sarRate * sarPremium,
       spotInr24: usd24k * inrRate,
+      spotInr22: usd22k * inrRate,
       spotSar24: usd24k * sarRate,
+      spotSar22: usd22k * sarRate,
       timestamp: Date.now()
     };
 
@@ -258,6 +264,10 @@ function renderResult(r){
   $('inr22').textContent = '₹' + fmt(r.inr22);
   $('sar24').textContent = 'SAR ' + fmt(r.sar24);
   $('sar22').textContent = 'SAR ' + fmt(r.sar22);
+  $('spotInr24').textContent = '₹' + fmt(r.spotInr24);
+  $('spotInr22').textContent = '₹' + fmt(r.spotInr22);
+  $('spotSar24').textContent = 'SAR ' + fmt(r.spotSar24);
+  $('spotSar22').textContent = 'SAR ' + fmt(r.spotSar22);
   $('lastUpdated').textContent = new Date(r.timestamp).toLocaleTimeString();
 }
 
