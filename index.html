@@ -107,32 +107,33 @@
   <div class="grid">
     <div class="card">
       <div class="karat">24K GOLD</div>
-      <div class="currency-label">INR per gram</div>
+      <div class="currency-label">INR <span id="inr24WeightLabel">per gram</span></div>
       <div class="amount" id="inr24">--</div>
-      <div class="unit">spot: <span id="spotInr24">--</span></div>
+      <div class="unit">spot: <span id="spotInr24">--</span>/g</div>
     </div>
     <div class="card">
       <div class="karat">24K GOLD</div>
-      <div class="currency-label">SAR per gram</div>
+      <div class="currency-label">SAR <span id="sar24WeightLabel">per gram</span></div>
       <div class="amount" id="sar24">--</div>
-      <div class="unit">spot: <span id="spotSar24">--</span></div>
+      <div class="unit">spot: <span id="spotSar24">--</span>/g</div>
     </div>
     <div class="card">
       <div class="karat">22K GOLD</div>
-      <div class="currency-label">INR per gram</div>
+      <div class="currency-label">INR <span id="inr22WeightLabel">per gram</span></div>
       <div class="amount" id="inr22">--</div>
-      <div class="unit">spot: <span id="spotInr22">--</span></div>
+      <div class="unit">spot: <span id="spotInr22">--</span>/g</div>
     </div>
     <div class="card">
       <div class="karat">22K GOLD</div>
-      <div class="currency-label">SAR per gram</div>
+      <div class="currency-label">SAR <span id="sar22WeightLabel">per gram</span></div>
       <div class="amount" id="sar22">--</div>
-      <div class="unit">spot: <span id="spotSar22">--</span></div>
+      <div class="unit">spot: <span id="spotSar22">--</span>/g</div>
     </div>
     <div class="card full-card">
       <div class="karat">SPOT PRICE</div>
       <div class="currency-label">USD per troy ounce (XAU)</div>
       <div class="amount" id="spotUsd">--</div>
+      <div class="unit">≈ <span id="spotInr24Top">--</span> / <span id="spotSar24Top">--</span> per gram (24K)</div>
     </div>
   </div>
 
@@ -154,6 +155,18 @@
         <option value="60">Every 1 hour</option>
         <option value="120" selected>Every 2 hours</option>
         <option value="240">Every 4 hours</option>
+      </select>
+    </div>
+    <div class="row">
+      <span>Weight (INR/SAR price cards)</span>
+      <select id="weightSelect">
+        <option value="1">1 gram</option>
+        <option value="8">8 grams</option>
+        <option value="10" selected>10 grams</option>
+        <option value="11.664">1 tola (11.664g)</option>
+        <option value="20">20 grams</option>
+        <option value="50">50 grams</option>
+        <option value="100">100 grams</option>
       </select>
     </div>
     <div class="row">
@@ -197,6 +210,7 @@ const $ = (id) => document.getElementById(id);
 let intervalHandle = null;
 let countdownHandle = null;
 let nextCheckTime = null;
+let lastResult = null;
 
 function fmt(n){
   return Number(n).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -245,6 +259,7 @@ async function fetchGoldPrice(){
     renderResult(result);
     saveToLog(result);
     setStatus('live', 'Live');
+    lastResult = result;
     localStorage.setItem('goldtracker_last', JSON.stringify(result));
 
     if ($('notifToggle').checked && Notification.permission === 'granted') {
@@ -259,15 +274,27 @@ async function fetchGoldPrice(){
 }
 
 function renderResult(r){
+  const weight = parseFloat($('weightSelect').value) || 1;
+  const weightLabel = weight === 1 ? 'per gram' : (weight === 11.664 ? 'per tola' : `for ${weight}g`);
+
   $('spotUsd').textContent = '$' + fmt(r.usdPerOz);
-  $('inr24').textContent = '₹' + fmt(r.inr24);
-  $('inr22').textContent = '₹' + fmt(r.inr22);
-  $('sar24').textContent = 'SAR ' + fmt(r.sar24);
-  $('sar22').textContent = 'SAR ' + fmt(r.sar22);
+  $('spotInr24Top').textContent = '₹' + fmt(r.spotInr24);
+  $('spotSar24Top').textContent = 'SAR ' + fmt(r.spotSar24);
+
+  $('inr24').textContent = '₹' + fmt(r.inr24 * weight);
+  $('sar24').textContent = 'SAR ' + fmt(r.sar24 * weight);
+  $('inr24WeightLabel').textContent = weightLabel;
+  $('sar24WeightLabel').textContent = weightLabel;
   $('spotInr24').textContent = '₹' + fmt(r.spotInr24);
-  $('spotInr22').textContent = '₹' + fmt(r.spotInr22);
   $('spotSar24').textContent = 'SAR ' + fmt(r.spotSar24);
+
+  $('inr22').textContent = '₹' + fmt(r.inr22 * weight);
+  $('sar22').textContent = 'SAR ' + fmt(r.sar22 * weight);
+  $('inr22WeightLabel').textContent = weightLabel;
+  $('sar22WeightLabel').textContent = weightLabel;
+  $('spotInr22').textContent = '₹' + fmt(r.spotInr22);
   $('spotSar22').textContent = 'SAR ' + fmt(r.spotSar22);
+
   $('lastUpdated').textContent = new Date(r.timestamp).toLocaleTimeString();
 }
 
@@ -373,6 +400,11 @@ $('notifToggle').addEventListener('change', async (e) => {
   localStorage.setItem('goldtracker_notif', e.target.checked ? '1' : '0');
 });
 
+$('weightSelect').addEventListener('change', (e) => {
+  localStorage.setItem('goldtracker_weight', e.target.value);
+  if (lastResult) renderResult(lastResult);
+});
+
 $('intervalSelect').addEventListener('change', scheduleNext);
 
 $('inrPremium').addEventListener('change', (e) => {
@@ -389,7 +421,12 @@ $('sarPremium').addEventListener('change', (e) => {
   registerServiceWorker();
 
   const cachedLast = localStorage.getItem('goldtracker_last');
-  if (cachedLast) renderResult(JSON.parse(cachedLast));
+  if (cachedLast) { lastResult = JSON.parse(cachedLast); }
+
+  const savedWeight = localStorage.getItem('goldtracker_weight');
+  if (savedWeight) $('weightSelect').value = savedWeight;
+
+  if (lastResult) renderResult(lastResult);
 
   const cachedLog = JSON.parse(localStorage.getItem('goldtracker_log') || '[]');
   renderLog(cachedLog);
