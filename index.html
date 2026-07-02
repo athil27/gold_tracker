@@ -153,6 +153,14 @@
       </select>
     </div>
     <div class="row">
+      <span>India premium over spot (%)</span>
+      <input type="number" id="inrPremium" value="14" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
+    </div>
+    <div class="row">
+      <span>Saudi premium over spot (%)</span>
+      <input type="number" id="sarPremium" value="4" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
+    </div>
+    <div class="row">
       <span>Last updated</span>
       <span id="lastUpdated" style="color:var(--muted);">--</span>
     </div>
@@ -168,8 +176,11 @@
   </div>
 
   <div class="note">
-    Prices from gold-api.com (live XAU spot) and open.er-api.com (USD→INR/SAR rates).
-    22K uses 91.67% purity of 24K. This is a reference tool, not a trading or jewellery-billing price — actual jeweller rates add making charges and may differ slightly.
+    Base data: gold-api.com (live XAU spot) and open.er-api.com (USD→INR/SAR rates).
+    22K uses 91.67% purity of 24K. The "local premium" settings above add India's import duty/GST
+    and Saudi dealer margin on top of spot so the number matches real market rates like Google's —
+    adjust those % if your local rate still doesn't line up; jewellers also add making charges on top,
+    which this can't predict.
     <br><br>
     For popups to fire every 2 hours reliably, keep this app installed to your home screen and open/backgrounded (not force-closed). Android may still delay background timers on some phones — if that happens, disable battery optimization for this app/browser in phone settings.
   </div>
@@ -211,12 +222,17 @@ async function fetchGoldPrice(){
     const usd24k = usdPerOz / GRAMS_PER_OZ;
     const usd22k = usd24k * (22/24);
 
+    const inrPremium = 1 + (parseFloat($('inrPremium').value) || 0) / 100;
+    const sarPremium = 1 + (parseFloat($('sarPremium').value) || 0) / 100;
+
     const result = {
       usdPerOz,
-      inr24: usd24k * inrRate,
-      inr22: usd22k * inrRate,
-      sar24: usd24k * sarRate,
-      sar22: usd22k * sarRate,
+      inr24: usd24k * inrRate * inrPremium,
+      inr22: usd22k * inrRate * inrPremium,
+      sar24: usd24k * sarRate * sarPremium,
+      sar22: usd22k * sarRate * sarPremium,
+      spotInr24: usd24k * inrRate,
+      spotSar24: usd24k * sarRate,
       timestamp: Date.now()
     };
 
@@ -349,6 +365,15 @@ $('notifToggle').addEventListener('change', async (e) => {
 
 $('intervalSelect').addEventListener('change', scheduleNext);
 
+$('inrPremium').addEventListener('change', (e) => {
+  localStorage.setItem('goldtracker_inrPremium', e.target.value);
+  fetchGoldPrice();
+});
+$('sarPremium').addEventListener('change', (e) => {
+  localStorage.setItem('goldtracker_sarPremium', e.target.value);
+  fetchGoldPrice();
+});
+
 // Init
 (function init(){
   registerServiceWorker();
@@ -361,6 +386,11 @@ $('intervalSelect').addEventListener('change', scheduleNext);
 
   const savedInterval = localStorage.getItem('goldtracker_interval');
   if (savedInterval) $('intervalSelect').value = savedInterval;
+
+  const savedInrPrem = localStorage.getItem('goldtracker_inrPremium');
+  if (savedInrPrem !== null) $('inrPremium').value = savedInrPrem;
+  const savedSarPrem = localStorage.getItem('goldtracker_sarPremium');
+  if (savedSarPrem !== null) $('sarPremium').value = savedSarPrem;
 
   const notifPref = localStorage.getItem('goldtracker_notif');
   if (notifPref === '1' && Notification.permission === 'granted') {

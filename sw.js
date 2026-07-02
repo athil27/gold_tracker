@@ -59,10 +59,16 @@ async function checkGoldPriceAndNotify() {
     const usd24k = usdPerOz / GRAMS_PER_OZ;
     const usd22k = usd24k * (22 / 24);
 
-    const inr24 = (usd24k * inrRate).toFixed(2);
-    const inr22 = (usd22k * inrRate).toFixed(2);
-    const sar24 = (usd24k * sarRate).toFixed(2);
-    const sar22 = (usd22k * sarRate).toFixed(2);
+    // Mirrors the default "local market premium over spot" set in index.html settings.
+    // If the user changes those sliders, this background-sync bonus path won't pick it up
+    // until the app is reopened - the primary in-page timer always uses the live setting.
+    const INR_PREMIUM = 1.14;
+    const SAR_PREMIUM = 1.04;
+
+    const inr24 = (usd24k * inrRate * INR_PREMIUM).toFixed(2);
+    const inr22 = (usd22k * inrRate * INR_PREMIUM).toFixed(2);
+    const sar24 = (usd24k * sarRate * SAR_PREMIUM).toFixed(2);
+    const sar22 = (usd22k * sarRate * SAR_PREMIUM).toFixed(2);
 
     await self.registration.showNotification('Gold Price Update', {
       body: `24K: ₹${inr24} / SAR ${sar24}   |   22K: ₹${inr22} / SAR ${sar22}  (per gram)`,
