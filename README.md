@@ -1,7 +1,16 @@
 # Gold Price Tracker (PWA)
 
-Tracks live gold spot price and shows 22K & 24K price per gram in **INR** and **SAR**,
-with a popup notification every 2 hours (configurable).
+Tracks live gold spot price, converts to 22K & 24K price per gram in **INR** and **SAR**,
+with a popup notification every 2 hours (configurable) — plus a full set of tools for
+long-term retail gold accumulation (e.g. saving for a wedding set):
+
+- **Live price cards** — spot, local-market-adjusted, and jeweller-inclusive (making charges) prices, per gram or scaled to a chosen weight (8g/10g/1 tola/etc.)
+- **Price trend + buy signal** — builds its own price history from your checks over time, shows a sparkline, and flags when the price drops meaningfully below its rolling average
+- **India vs Saudi comparison** — converts both to ₹ so you can see which market is cheaper right now
+- **Goal tracker** — set a target weight (e.g. "150g for daughter's wedding"), track progress
+- **Purchase log** — record real purchases (date, karat, weight, price, jeweller), running totals and average cost
+- **NRI gold duty-free allowance reference** — quick lookup, India Baggage Rules 2026
+- **Export/Import backup** — since everything lives in browser local storage only
 
 ## What's in this folder
 - `index.html` - the app

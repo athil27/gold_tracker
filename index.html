@@ -85,6 +85,40 @@
     background:#2a220a; border:1px solid var(--gold-dim); color:#e8d38a; font-size:12px;
     border-radius:10px; padding:10px 12px; margin-bottom:16px; line-height:1.5;
   }
+  .section{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:16px; margin-bottom:16px;
+  }
+  .section h2{font-size:13px; color:var(--gold); margin:0 0 12px; letter-spacing:0.5px;}
+  .section h3{font-size:12px; color:var(--text); margin:16px 0 8px; letter-spacing:0.3px;}
+  .subnote{font-size:11px; color:var(--muted); line-height:1.5; margin-top:6px;}
+  .badge{
+    display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px;
+    background:var(--gold); color:#0d0d0d; letter-spacing:0.3px;
+  }
+  .badge.dim{background:#2a2a2a; color:var(--muted); font-weight:400;}
+  .progress-wrap{background:#111; border-radius:10px; height:10px; overflow:hidden; margin:8px 0;}
+  .progress-bar{height:100%; background:linear-gradient(90deg, var(--gold-dim), var(--gold)); transition:width .3s;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;}
+  .form-grid input, .form-grid select{
+    width:100%; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px;
+    padding:8px 10px; font-size:13px;
+  }
+  .form-grid label{font-size:11px; color:var(--muted); display:block; margin-bottom:4px;}
+  table.plist{width:100%; border-collapse:collapse; font-size:12px; margin-top:10px;}
+  table.plist th{text-align:left; color:var(--muted); font-weight:400; padding:6px 4px; border-bottom:1px solid var(--border);}
+  table.plist td{padding:6px 4px; border-bottom:1px solid var(--border); color:var(--text);}
+  table.plist td.del{color:var(--red); cursor:pointer; text-align:right;}
+  .cmp-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px;}
+  .cmp-row:last-child{border-bottom:none;}
+  .cmp-val{font-weight:700;}
+  details{border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-top:10px;}
+  details summary{cursor:pointer; font-size:13px; color:var(--gold); font-weight:700; list-style:none;}
+  details summary::-webkit-details-marker{display:none;}
+  details p, details li{font-size:12px; color:var(--muted); line-height:1.6;}
+  details ul{padding-left:18px; margin:8px 0;}
+  .export-row{display:flex; gap:10px; margin-top:10px;}
+  .export-row button{flex:1;}
 </style>
 </head>
 <body>
@@ -109,25 +143,25 @@
       <div class="karat">24K GOLD</div>
       <div class="currency-label">INR <span id="inr24WeightLabel">per gram</span></div>
       <div class="amount" id="inr24">--</div>
-      <div class="unit">spot: <span id="spotInr24">--</span>/g</div>
+      <div class="unit">spot: <span id="spotInr24">--</span>/g · at jeweller ≈ <span id="jwInr24">--</span></div>
     </div>
     <div class="card">
       <div class="karat">24K GOLD</div>
       <div class="currency-label">SAR <span id="sar24WeightLabel">per gram</span></div>
       <div class="amount" id="sar24">--</div>
-      <div class="unit">spot: <span id="spotSar24">--</span>/g</div>
+      <div class="unit">spot: <span id="spotSar24">--</span>/g · at jeweller ≈ <span id="jwSar24">--</span></div>
     </div>
     <div class="card">
       <div class="karat">22K GOLD</div>
       <div class="currency-label">INR <span id="inr22WeightLabel">per gram</span></div>
       <div class="amount" id="inr22">--</div>
-      <div class="unit">spot: <span id="spotInr22">--</span>/g</div>
+      <div class="unit">spot: <span id="spotInr22">--</span>/g · at jeweller ≈ <span id="jwInr22">--</span></div>
     </div>
     <div class="card">
       <div class="karat">22K GOLD</div>
       <div class="currency-label">SAR <span id="sar22WeightLabel">per gram</span></div>
       <div class="amount" id="sar22">--</div>
-      <div class="unit">spot: <span id="spotSar22">--</span>/g</div>
+      <div class="unit">spot: <span id="spotSar22">--</span>/g · at jeweller ≈ <span id="jwSar22">--</span></div>
     </div>
     <div class="card full-card">
       <div class="karat">SPOT PRICE</div>
@@ -178,6 +212,14 @@
       <input type="number" id="sarPremium" value="4" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
     </div>
     <div class="row">
+      <span>Typical making charge (%)</span>
+      <input type="number" id="makingCharge" value="12" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
+    </div>
+    <div class="row">
+      <span>Buy alert threshold (% below avg)</span>
+      <input type="number" id="buyThreshold" value="3" min="0.5" max="20" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
+    </div>
+    <div class="row">
       <span>Last updated</span>
       <span id="lastUpdated" style="color:var(--muted);">--</span>
     </div>
@@ -190,6 +232,120 @@
   <div class="log">
     <h2>RECENT CHECKS</h2>
     <div id="logList"><div class="log-entry"><span>No checks yet</span></div></div>
+  </div>
+
+  <div class="section">
+    <h2>PRICE TREND <span class="badge dim" id="trendDays">--</span></h2>
+    <div id="buySignal"></div>
+    <svg id="sparkline" viewBox="0 0 300 60" style="width:100%; height:60px; margin-top:8px;"></svg>
+    <div class="subnote" id="trendSubnote">History builds up as you use the app (or on each 2-hourly check) — the more you keep it running, the more useful this gets. A rolling average forms the "buy signal" baseline below.</div>
+  </div>
+
+  <div class="section">
+    <h2>INDIA VS SAUDI (22K, landed in ₹ terms)</h2>
+    <div class="cmp-row">
+      <span>India retail (22K/g)</span>
+      <span class="cmp-val" id="cmpIndia">--</span>
+    </div>
+    <div class="cmp-row">
+      <span>Saudi retail, converted to ₹ (22K/g)</span>
+      <span class="cmp-val" id="cmpSaudi">--</span>
+    </div>
+    <div class="cmp-row">
+      <span id="cmpResult">--</span>
+      <span></span>
+    </div>
+    <div class="subnote">Uses today's USD→INR/SAR rates only — doesn't account for your actual remittance rate, transfer fees, or carrying gold physically across borders (see NRI allowance note below).</div>
+  </div>
+
+  <div class="section">
+    <h2>GOAL TRACKER</h2>
+    <div class="form-grid">
+      <div>
+        <label>Goal name</label>
+        <input type="text" id="goalName" placeholder="Daughter's wedding set">
+      </div>
+      <div>
+        <label>Target weight (grams)</label>
+        <input type="number" id="goalGrams" placeholder="e.g. 150">
+      </div>
+    </div>
+    <button class="btn" id="saveGoalBtn" style="width:100%; margin-top:4px;">Save goal</button>
+    <div id="goalDisplay" style="margin-top:14px; display:none;">
+      <div style="display:flex; justify-content:space-between; font-size:13px;">
+        <span id="goalLabel" style="color:var(--gold); font-weight:700;">--</span>
+        <span id="goalPct" style="color:var(--muted);">--</span>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar" id="goalBar" style="width:0%;"></div></div>
+      <div class="subnote" id="goalSubnote">--</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>MY PURCHASES</h2>
+    <div class="form-grid">
+      <div>
+        <label>Date</label>
+        <input type="date" id="pDate">
+      </div>
+      <div>
+        <label>Karat</label>
+        <select id="pKarat"><option value="22">22K</option><option value="24">24K</option></select>
+      </div>
+      <div>
+        <label>Weight (grams)</label>
+        <input type="number" id="pGrams" placeholder="e.g. 10" step="0.01">
+      </div>
+      <div>
+        <label>Total price paid</label>
+        <input type="number" id="pPrice" placeholder="e.g. 145000" step="0.01">
+      </div>
+      <div>
+        <label>Currency</label>
+        <select id="pCurrency"><option value="INR">INR</option><option value="SAR">SAR</option></select>
+      </div>
+      <div>
+        <label>Jeweller (optional)</label>
+        <input type="text" id="pJeweller" placeholder="e.g. Malabar Gold">
+      </div>
+    </div>
+    <button class="btn" id="addPurchaseBtn" style="width:100%;">Add purchase</button>
+
+    <div id="purchaseSummary" style="margin-top:14px; display:none;">
+      <div class="cmp-row"><span>Total weight bought</span><span class="cmp-val" id="sumGrams">--</span></div>
+      <div class="cmp-row"><span>Total spent (INR)</span><span class="cmp-val" id="sumInr">--</span></div>
+      <div class="cmp-row"><span>Total spent (SAR)</span><span class="cmp-val" id="sumSar">--</span></div>
+      <div class="cmp-row"><span>Avg cost / gram (blended)</span><span class="cmp-val" id="sumAvg">--</span></div>
+    </div>
+
+    <table class="plist" id="purchaseTable" style="display:none;">
+      <thead><tr><th>Date</th><th>Karat</th><th>Grams</th><th>Paid</th><th></th></tr></thead>
+      <tbody id="purchaseTbody"></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>REFERENCE</h2>
+    <details>
+      <summary>NRI gold duty-free allowance (India) ▾</summary>
+      <p>Under India's Baggage Rules 2026, for Indian passport holders/NRIs who've stayed abroad continuously for 1+ year, arriving with <strong>gold jewellery</strong> (not bars/coins):</p>
+      <ul>
+        <li>Male traveller: 20 grams duty-free</li>
+        <li>Female traveller: 40 grams duty-free</li>
+        <li>Children with 1+ year abroad: same limits as above, by gender</li>
+      </ul>
+      <p>Beyond that, and for gold bars/coins (which get no duty-free allowance at all), a concessional customs duty of roughly 6% applies if you've been abroad 6+ months — up to 1kg total per passenger, must be declared at the Red Channel. Shorter stays abroad lose the concessional rate and pay a much higher standard duty.</p>
+      <p class="subnote">Rules and rates change with each Union Budget — verify current figures at cbic.gov.in or the ATITHI app before travelling with jewellery near these limits.</p>
+    </details>
+  </div>
+
+  <div class="section">
+    <h2>BACKUP</h2>
+    <div class="subnote">Everything above (purchases, goal, price history, settings) lives only in this browser's local storage. Export it periodically so you don't lose it if you clear browser data or switch devices.</div>
+    <div class="export-row">
+      <button class="btn" id="exportBtn">Export data</button>
+      <label class="btn" style="text-align:center; cursor:pointer;">Import data<input type="file" id="importFile" accept=".json" style="display:none;"></label>
+    </div>
   </div>
 
   <div class="note">
@@ -258,9 +414,13 @@ async function fetchGoldPrice(){
 
     renderResult(result);
     saveToLog(result);
+    saveHistoryPoint(result);
+    renderComparison(result);
     setStatus('live', 'Live');
     lastResult = result;
     localStorage.setItem('goldtracker_last', JSON.stringify(result));
+
+    checkBuySignal(result);
 
     if ($('notifToggle').checked && Notification.permission === 'granted') {
       showNotification(result);
@@ -294,6 +454,12 @@ function renderResult(r){
   $('sar22WeightLabel').textContent = weightLabel;
   $('spotInr22').textContent = '₹' + fmt(r.spotInr22);
   $('spotSar22').textContent = 'SAR ' + fmt(r.spotSar22);
+
+  const making = 1 + (parseFloat($('makingCharge').value) || 0) / 100;
+  $('jwInr24').textContent = '₹' + fmt(r.inr24 * weight * making);
+  $('jwSar24').textContent = 'SAR ' + fmt(r.sar24 * weight * making);
+  $('jwInr22').textContent = '₹' + fmt(r.inr22 * weight * making);
+  $('jwSar22').textContent = 'SAR ' + fmt(r.sar22 * weight * making);
 
   $('lastUpdated').textContent = new Date(r.timestamp).toLocaleTimeString();
 }
@@ -330,6 +496,268 @@ function renderLog(log){
     </div>
   `).join('');
 }
+
+/* ---------- PRICE HISTORY, TREND CHART, BUY SIGNAL ---------- */
+
+function saveHistoryPoint(r){
+  let hist = JSON.parse(localStorage.getItem('goldtracker_history') || '[]');
+  hist.push({ t: r.timestamp, usd: r.usdPerOz });
+  if (hist.length > 600) hist = hist.slice(hist.length - 600);
+  localStorage.setItem('goldtracker_history', JSON.stringify(hist));
+  renderTrend(hist);
+}
+
+async function bootstrapHistoryIfEmpty(){
+  const existing = JSON.parse(localStorage.getItem('goldtracker_history') || '[]');
+  if (existing.length > 5) { renderTrend(existing); return; }
+  try {
+    const res = await fetch('https://freegoldapi.com/data/latest.json');
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : (data.data || data.prices || []);
+    if (Array.isArray(arr) && arr.length){
+      const seeded = arr.slice(-60).map(d => ({
+        t: new Date(d.date || d.t || d.timestamp).getTime(),
+        usd: d.price || d.usd || d.value
+      })).filter(p => p.t && p.usd);
+      if (seeded.length){
+        localStorage.setItem('goldtracker_history', JSON.stringify(seeded));
+        renderTrend(seeded);
+      }
+    }
+  } catch (e) {
+    // best-effort only - history will build organically from regular checks either way
+  }
+}
+
+function rollingAverage(hist, days){
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const inWindow = hist.filter(p => p.t >= cutoff);
+  const use = inWindow.length >= 3 ? inWindow : hist;
+  if (!use.length) return null;
+  return use.reduce((sum, p) => sum + p.usd, 0) / use.length;
+}
+
+function renderTrend(hist){
+  if (!hist.length) return;
+  const avg30 = rollingAverage(hist, 30);
+  const spanDays = hist.length > 1 ? Math.max(1, Math.round((hist[hist.length-1].t - hist[0].t) / 86400000)) : 0;
+  $('trendDays').textContent = spanDays > 0 ? `${spanDays}-day history (${hist.length} checks)` : 'building history...';
+
+  // sparkline
+  const points = hist.slice(-60);
+  const svg = $('sparkline');
+  if (points.length < 2){
+    svg.innerHTML = `<text x="150" y="34" text-anchor="middle" fill="#666" font-size="11">Collecting data — check back after a few checks</text>`;
+    return;
+  }
+  const vals = points.map(p => p.usd);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max - min) || 1;
+  const w = 300, h = 60, pad = 4;
+  const coords = points.map((p, i) => {
+    const x = pad + (i / (points.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((p.usd - min) / range) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  svg.innerHTML = `
+    <polyline points="${coords}" fill="none" stroke="#d4af37" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  `;
+}
+
+function checkBuySignal(r){
+  const hist = JSON.parse(localStorage.getItem('goldtracker_history') || '[]');
+  const avg = rollingAverage(hist, 30);
+  const el = $('buySignal');
+  if (!avg || hist.length < 5){
+    el.innerHTML = `<span class="badge dim">Not enough history yet for a buy signal</span>`;
+    return;
+  }
+  const threshold = parseFloat($('buyThreshold').value) || 3;
+  const dropPct = ((avg - r.usdPerOz) / avg) * 100;
+  const wasSignalled = localStorage.getItem('goldtracker_lastSignal') === '1';
+
+  if (dropPct >= threshold){
+    el.innerHTML = `<span class="badge">Below recent average by ${dropPct.toFixed(1)}% — possible buy window</span>`;
+    if (!wasSignalled && $('notifToggle').checked && Notification.permission === 'granted'){
+      const body = `Spot is ${dropPct.toFixed(1)}% below its ${Math.min(30, Math.round((Date.now()-hist[0].t)/86400000))}-day average. 24K: ₹${fmt(r.inr24)} · 22K: ₹${fmt(r.inr22)} per gram.`;
+      if ('serviceWorker' in navigator){
+        navigator.serviceWorker.ready.then((reg) => reg.showNotification('Gold buy signal', { body, icon: './icon-192.png', tag: 'gold-buy-signal' }));
+      }
+    }
+    localStorage.setItem('goldtracker_lastSignal', '1');
+  } else {
+    el.innerHTML = `<span class="badge dim">${dropPct >= 0 ? dropPct.toFixed(1)+'% below' : Math.abs(dropPct).toFixed(1)+'% above'} recent average — no signal</span>`;
+    localStorage.setItem('goldtracker_lastSignal', '0');
+  }
+}
+
+/* ---------- INDIA VS SAUDI COMPARISON ---------- */
+
+function renderComparison(r){
+  const sarToInr = r.spotSar24 ? (r.spotInr24 / r.spotSar24) : null; // implied fx via spot, robust to premium differences
+  if (!sarToInr) return;
+  const saudiInInr = r.sar22 * sarToInr;
+  $('cmpIndia').textContent = '₹' + fmt(r.inr22);
+  $('cmpSaudi').textContent = '₹' + fmt(saudiInInr);
+  const diffPct = ((r.inr22 - saudiInInr) / saudiInInr) * 100;
+  if (Math.abs(diffPct) < 0.5){
+    $('cmpResult').textContent = 'Roughly the same in both markets right now';
+  } else if (diffPct > 0){
+    $('cmpResult').textContent = `Saudi is ~${diffPct.toFixed(1)}% cheaper right now`;
+  } else {
+    $('cmpResult').textContent = `India is ~${Math.abs(diffPct).toFixed(1)}% cheaper right now`;
+  }
+}
+
+/* ---------- GOAL TRACKER ---------- */
+
+function loadGoal(){
+  const goal = JSON.parse(localStorage.getItem('goldtracker_goal') || 'null');
+  if (goal){
+    $('goalName').value = goal.name || '';
+    $('goalGrams').value = goal.grams || '';
+  }
+  renderGoalProgress();
+}
+
+function renderGoalProgress(){
+  const goal = JSON.parse(localStorage.getItem('goldtracker_goal') || 'null');
+  if (!goal || !goal.grams){ $('goalDisplay').style.display = 'none'; return; }
+  const purchases = JSON.parse(localStorage.getItem('goldtracker_purchases') || '[]');
+  const totalGrams = purchases.reduce((sum, p) => sum + parseFloat(p.grams || 0), 0);
+  const pct = Math.min(100, (totalGrams / goal.grams) * 100);
+  const remaining = Math.max(0, goal.grams - totalGrams);
+
+  $('goalDisplay').style.display = 'block';
+  $('goalLabel').textContent = goal.name || 'Goal';
+  $('goalPct').textContent = `${totalGrams.toFixed(2)}g / ${goal.grams}g`;
+  $('goalBar').style.width = pct.toFixed(1) + '%';
+
+  if (remaining > 0 && lastResult){
+    const making = 1 + (parseFloat($('makingCharge').value) || 0) / 100;
+    const estInr = remaining * lastResult.inr22 * making;
+    const estSar = remaining * lastResult.sar22 * making;
+    $('goalSubnote').textContent = `${remaining.toFixed(2)}g remaining — roughly ₹${fmt(estInr)} / SAR ${fmt(estSar)} at today's 22K jeweller-inclusive rate.`;
+  } else if (remaining <= 0){
+    $('goalSubnote').textContent = `Goal reached based on total weight purchased. 🎉`;
+  } else {
+    $('goalSubnote').textContent = `${remaining.toFixed(2)}g remaining.`;
+  }
+}
+
+$('saveGoalBtn').addEventListener('click', () => {
+  const name = $('goalName').value.trim() || 'Gold goal';
+  const grams = parseFloat($('goalGrams').value);
+  if (!grams || grams <= 0){ alert('Enter a target weight in grams.'); return; }
+  localStorage.setItem('goldtracker_goal', JSON.stringify({ name, grams }));
+  renderGoalProgress();
+});
+
+/* ---------- PURCHASE LOG ---------- */
+
+function renderPurchases(){
+  const purchases = JSON.parse(localStorage.getItem('goldtracker_purchases') || '[]');
+  const tbody = $('purchaseTbody');
+  const table = $('purchaseTable');
+  const summary = $('purchaseSummary');
+
+  if (!purchases.length){
+    table.style.display = 'none';
+    summary.style.display = 'none';
+    renderGoalProgress();
+    return;
+  }
+
+  table.style.display = '';
+  summary.style.display = 'block';
+
+  tbody.innerHTML = purchases.map((p, i) => `
+    <tr>
+      <td>${p.date}</td>
+      <td>${p.karat}K</td>
+      <td>${parseFloat(p.grams).toFixed(2)}g</td>
+      <td>${p.currency === 'INR' ? '₹' : 'SAR '}${fmt(p.price)}</td>
+      <td class="del" data-idx="${i}">✕</td>
+    </tr>
+  `).join('');
+
+  tbody.querySelectorAll('.del').forEach(td => {
+    td.addEventListener('click', () => {
+      const idx = parseInt(td.dataset.idx, 10);
+      purchases.splice(idx, 1);
+      localStorage.setItem('goldtracker_purchases', JSON.stringify(purchases));
+      renderPurchases();
+    });
+  });
+
+  const totalGrams = purchases.reduce((s, p) => s + parseFloat(p.grams || 0), 0);
+  const totalInr = purchases.filter(p => p.currency === 'INR').reduce((s, p) => s + parseFloat(p.price || 0), 0);
+  const totalSar = purchases.filter(p => p.currency === 'SAR').reduce((s, p) => s + parseFloat(p.price || 0), 0);
+  const gramsInInr = purchases.filter(p => p.currency === 'INR').reduce((s, p) => s + parseFloat(p.grams || 0), 0);
+
+  $('sumGrams').textContent = totalGrams.toFixed(2) + 'g';
+  $('sumInr').textContent = '₹' + fmt(totalInr);
+  $('sumSar').textContent = 'SAR ' + fmt(totalSar);
+  $('sumAvg').textContent = gramsInInr > 0 ? ('₹' + fmt(totalInr / gramsInInr) + '/g (INR purchases only)') : '--';
+
+  renderGoalProgress();
+}
+
+$('addPurchaseBtn').addEventListener('click', () => {
+  const date = $('pDate').value || new Date().toISOString().slice(0, 10);
+  const karat = $('pKarat').value;
+  const grams = parseFloat($('pGrams').value);
+  const price = parseFloat($('pPrice').value);
+  const currency = $('pCurrency').value;
+  const jeweller = $('pJeweller').value.trim();
+
+  if (!grams || grams <= 0 || !price || price <= 0){
+    alert('Enter both weight and price paid.');
+    return;
+  }
+
+  const purchases = JSON.parse(localStorage.getItem('goldtracker_purchases') || '[]');
+  purchases.push({ date, karat, grams, price, currency, jeweller });
+  localStorage.setItem('goldtracker_purchases', JSON.stringify(purchases));
+
+  $('pGrams').value = ''; $('pPrice').value = ''; $('pJeweller').value = '';
+  renderPurchases();
+});
+
+/* ---------- EXPORT / IMPORT ---------- */
+
+$('exportBtn').addEventListener('click', () => {
+  const data = {};
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('goldtracker_')) data[k] = localStorage.getItem(k);
+  });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gold-tracker-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+$('importFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      Object.keys(data).forEach(k => {
+        if (k.startsWith('goldtracker_')) localStorage.setItem(k, data[k]);
+      });
+      alert('Data restored. Reloading...');
+      location.reload();
+    } catch (err) {
+      alert('Could not read that file — make sure it\'s a backup exported from this app.');
+    }
+  };
+  reader.readAsText(file);
+});
 
 function scheduleNext(){
   clearInterval(intervalHandle);
@@ -416,6 +844,16 @@ $('sarPremium').addEventListener('change', (e) => {
   fetchGoldPrice();
 });
 
+$('makingCharge').addEventListener('change', (e) => {
+  localStorage.setItem('goldtracker_makingCharge', e.target.value);
+  if (lastResult) { renderResult(lastResult); renderGoalProgress(); }
+});
+
+$('buyThreshold').addEventListener('change', (e) => {
+  localStorage.setItem('goldtracker_buyThreshold', e.target.value);
+  if (lastResult) checkBuySignal(lastResult);
+});
+
 // Init
 (function init(){
   registerServiceWorker();
@@ -438,6 +876,16 @@ $('sarPremium').addEventListener('change', (e) => {
   if (savedInrPrem !== null) $('inrPremium').value = savedInrPrem;
   const savedSarPrem = localStorage.getItem('goldtracker_sarPremium');
   if (savedSarPrem !== null) $('sarPremium').value = savedSarPrem;
+  const savedMaking = localStorage.getItem('goldtracker_makingCharge');
+  if (savedMaking !== null) $('makingCharge').value = savedMaking;
+  const savedThreshold = localStorage.getItem('goldtracker_buyThreshold');
+  if (savedThreshold !== null) $('buyThreshold').value = savedThreshold;
+
+  $('pDate').value = new Date().toISOString().slice(0, 10);
+  renderPurchases();
+  loadGoal();
+  bootstrapHistoryIfEmpty();
+  if (lastResult) renderComparison(lastResult);
 
   const notifPref = localStorage.getItem('goldtracker_notif');
   if (notifPref === '1' && Notification.permission === 'granted') {
