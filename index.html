@@ -335,6 +335,8 @@
       <button class="btn" id="exportBtn">Export data</button>
       <label class="btn" style="text-align:center; cursor:pointer;">Import data<input type="file" id="importFile" accept=".json" style="display:none;"></label>
     </div>
+    <div class="subnote" style="margin-top:12px;">If the app looks stuck or out of date after an update, tap this — it clears the cached app shell (not your saved data above) and reloads fresh.</div>
+    <button class="btn" id="forceRefreshBtn" style="width:100%; margin-top:8px;">Force refresh app</button>
   </div>
 
   <div class="note">
@@ -848,6 +850,22 @@ $('importFile').addEventListener('change', (e) => {
     }
   };
   reader.readAsText(file);
+});
+
+$('forceRefreshBtn').addEventListener('click', async () => {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) {
+    console.error('Force refresh cleanup failed', e);
+  }
+  location.reload(true);
 });
 
 function scheduleNext(){
