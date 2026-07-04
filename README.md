@@ -4,7 +4,7 @@ Tracks live gold spot price, converts to 22K & 24K price per gram in **INR** and
 with a popup notification every 2 hours (configurable) — plus a full set of tools for
 long-term retail gold accumulation (e.g. saving for a wedding set):
 
-- **Live price cards** — spot, local-market-adjusted, and jeweller-inclusive (making charges) prices, per gram or scaled to a chosen weight (8g/10g/1 tola/etc.)
+- **Live price cards** — spot, local-market-adjusted, and jeweller-inclusive (making charges) prices, per gram or scaled to a chosen weight (8g/10g/1 tola/etc.), for any combination of 16 major currencies (INR, SAR, USD, AED, KWD, QAR, BHD, OMR, EUR, GBP, CAD, AUD, JPY, CNY, MYR, SGD)
 - **Price trend + buy signal** — builds its own price history from your checks over time, shows a sparkline, and flags when the price drops meaningfully below its rolling average
 - **India vs Saudi comparison** — converts both to ₹ so you can see which market is cheaper right now
 - **Goal tracker** — set a target weight (e.g. "150g for daughter's wedding"), track progress

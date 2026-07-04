@@ -119,6 +119,11 @@
   details ul{padding-left:18px; margin:8px 0;}
   .export-row{display:flex; gap:10px; margin-top:10px;}
   .export-row button{flex:1;}
+  .currency-chip{
+    background:#111; border:1px solid var(--border); color:var(--muted); font-size:12px;
+    padding:6px 12px; border-radius:20px; cursor:pointer; user-select:none;
+  }
+  .currency-chip.active{background:var(--gold); color:#0d0d0d; border-color:var(--gold); font-weight:700;}
 </style>
 </head>
 <body>
@@ -138,36 +143,14 @@
     Notifications are off. Tap "Enable Notifications" below so the 2-hourly popup actually appears.
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <div class="karat">24K GOLD</div>
-      <div class="currency-label">INR <span id="inr24WeightLabel">per gram</span></div>
-      <div class="amount" id="inr24">--</div>
-      <div class="unit">spot: <span id="spotInr24">--</span>/g · at jeweller ≈ <span id="jwInr24">--</span></div>
-    </div>
-    <div class="card">
-      <div class="karat">24K GOLD</div>
-      <div class="currency-label">SAR <span id="sar24WeightLabel">per gram</span></div>
-      <div class="amount" id="sar24">--</div>
-      <div class="unit">spot: <span id="spotSar24">--</span>/g · at jeweller ≈ <span id="jwSar24">--</span></div>
-    </div>
-    <div class="card">
-      <div class="karat">22K GOLD</div>
-      <div class="currency-label">INR <span id="inr22WeightLabel">per gram</span></div>
-      <div class="amount" id="inr22">--</div>
-      <div class="unit">spot: <span id="spotInr22">--</span>/g · at jeweller ≈ <span id="jwInr22">--</span></div>
-    </div>
-    <div class="card">
-      <div class="karat">22K GOLD</div>
-      <div class="currency-label">SAR <span id="sar22WeightLabel">per gram</span></div>
-      <div class="amount" id="sar22">--</div>
-      <div class="unit">spot: <span id="spotSar22">--</span>/g · at jeweller ≈ <span id="jwSar22">--</span></div>
-    </div>
+  <div class="grid" id="priceCardsGrid"></div>
+
+  <div class="grid" style="margin-top:0;">
     <div class="card full-card">
       <div class="karat">SPOT PRICE</div>
       <div class="currency-label">USD per troy ounce (XAU)</div>
       <div class="amount" id="spotUsd">--</div>
-      <div class="unit">≈ <span id="spotInr24Top">--</span> / <span id="spotSar24Top">--</span> per gram (24K)</div>
+      <div class="unit" id="spotTopLine">--</div>
     </div>
   </div>
 
@@ -182,6 +165,10 @@
         <span class="slider"></span>
       </label>
     </div>
+    <div class="row" style="display:block;">
+      <span style="display:block; margin-bottom:8px;">Currencies to show</span>
+      <div id="currencyChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+    </div>
     <div class="row">
       <span>Check interval</span>
       <select id="intervalSelect">
@@ -192,7 +179,7 @@
       </select>
     </div>
     <div class="row">
-      <span>Weight (INR/SAR price cards)</span>
+      <span>Weight (price cards)</span>
       <select id="weightSelect">
         <option value="1">1 gram</option>
         <option value="8">8 grams</option>
@@ -210,6 +197,10 @@
     <div class="row">
       <span>Saudi premium over spot (%)</span>
       <input type="number" id="sarPremium" value="4" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
+    </div>
+    <div class="row">
+      <span>Other currencies premium (%)</span>
+      <input type="number" id="otherPremium" value="0" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
     </div>
     <div class="row">
       <span>Typical making charge (%)</span>
@@ -302,7 +293,7 @@
       </div>
       <div>
         <label>Currency</label>
-        <select id="pCurrency"><option value="INR">INR</option><option value="SAR">SAR</option></select>
+        <select id="pCurrency"></select>
       </div>
       <div>
         <label>Jeweller (optional)</label>
@@ -313,9 +304,7 @@
 
     <div id="purchaseSummary" style="margin-top:14px; display:none;">
       <div class="cmp-row"><span>Total weight bought</span><span class="cmp-val" id="sumGrams">--</span></div>
-      <div class="cmp-row"><span>Total spent (INR)</span><span class="cmp-val" id="sumInr">--</span></div>
-      <div class="cmp-row"><span>Total spent (SAR)</span><span class="cmp-val" id="sumSar">--</span></div>
-      <div class="cmp-row"><span>Avg cost / gram (blended)</span><span class="cmp-val" id="sumAvg">--</span></div>
+      <div id="sumByCurrency"></div>
     </div>
 
     <table class="plist" id="purchaseTable" style="display:none;">
@@ -349,11 +338,12 @@
   </div>
 
   <div class="note">
-    Base data: gold-api.com (live XAU spot) and open.er-api.com (USD→INR/SAR rates).
-    22K uses 91.67% purity of 24K. The "local premium" settings above add India's import duty/GST
-    and Saudi dealer margin on top of spot so the number matches real market rates like Google's —
-    adjust those % if your local rate still doesn't line up; jewellers also add making charges on top,
-    which this can't predict.
+    Base data: gold-api.com (live XAU spot) and open.er-api.com (USD→INR/SAR/16 major currency rates).
+    22K uses 91.67% purity of 24K. Pick which currencies to show in Settings below — India and Saudi
+    get their own dedicated premium %, everything else uses a shared "other currencies" premium
+    (defaults to 0%, since duty/GST/dealer-margin norms vary a lot by country — set it if you know
+    your local market's typical markup). Jewellers also add making charges on top, approximated by
+    the making-charge % setting.
     <br><br>
     For popups to fire every 2 hours reliably, keep this app installed to your home screen and open/backgrounded (not force-closed). Android may still delay background timers on some phones — if that happens, disable battery optimization for this app/browser in phone settings.
   </div>
@@ -363,6 +353,40 @@
 <script>
 const GRAMS_PER_OZ = 31.1034768;
 const $ = (id) => document.getElementById(id);
+
+const CURRENCIES = [
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  { code: 'SAR', symbol: 'SAR ', name: 'Saudi Riyal' },
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+  { code: 'AED', symbol: 'AED ', name: 'UAE Dirham' },
+  { code: 'KWD', symbol: 'KWD ', name: 'Kuwaiti Dinar' },
+  { code: 'QAR', symbol: 'QAR ', name: 'Qatari Riyal' },
+  { code: 'BHD', symbol: 'BHD ', name: 'Bahraini Dinar' },
+  { code: 'OMR', symbol: 'OMR ', name: 'Omani Rial' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+  { code: 'GBP', symbol: '£', name: 'British Pound' },
+  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' }
+];
+
+function getSelectedCurrencies(){
+  const saved = JSON.parse(localStorage.getItem('goldtracker_currencies') || '["INR","SAR"]');
+  return saved.length ? saved : ['INR'];
+}
+
+function getPremiumPctFor(code){
+  if (code === 'INR') return parseFloat($('inrPremium').value) || 0;
+  if (code === 'SAR') return parseFloat($('sarPremium').value) || 0;
+  return parseFloat($('otherPremium').value) || 0;
+}
+
+function currencyMeta(code){
+  return CURRENCIES.find(c => c.code === code) || { code, symbol: code + ' ', name: code };
+}
 let intervalHandle = null;
 let countdownHandle = null;
 let nextCheckTime = null;
@@ -396,11 +420,26 @@ async function fetchGoldPrice(){
     const usd24k = usdPerOz / GRAMS_PER_OZ;
     const usd22k = usd24k * (22/24);
 
-    const inrPremium = 1 + (parseFloat($('inrPremium').value) || 0) / 100;
-    const sarPremium = 1 + (parseFloat($('sarPremium').value) || 0) / 100;
+    const prices = {};
+    CURRENCIES.forEach(c => {
+      const rate = fxData.rates[c.code];
+      if (!rate) return;
+      const premium = 1 + getPremiumPctFor(c.code) / 100;
+      prices[c.code] = {
+        rate,
+        spot24: usd24k * rate,
+        spot22: usd22k * rate,
+        prem24: usd24k * rate * premium,
+        prem22: usd22k * rate * premium
+      };
+    });
+
+    const inrPremium = 1 + getPremiumPctFor('INR') / 100;
+    const sarPremium = 1 + getPremiumPctFor('SAR') / 100;
 
     const result = {
       usdPerOz,
+      prices,
       inr24: usd24k * inrRate * inrPremium,
       inr22: usd22k * inrRate * inrPremium,
       sar24: usd24k * sarRate * sarPremium,
@@ -436,30 +475,45 @@ async function fetchGoldPrice(){
 function renderResult(r){
   const weight = parseFloat($('weightSelect').value) || 1;
   const weightLabel = weight === 1 ? 'per gram' : (weight === 11.664 ? 'per tola' : `for ${weight}g`);
+  const making = 1 + (parseFloat($('makingCharge').value) || 0) / 100;
 
   $('spotUsd').textContent = '$' + fmt(r.usdPerOz);
-  $('spotInr24Top').textContent = '₹' + fmt(r.spotInr24);
-  $('spotSar24Top').textContent = 'SAR ' + fmt(r.spotSar24);
 
-  $('inr24').textContent = '₹' + fmt(r.inr24 * weight);
-  $('sar24').textContent = 'SAR ' + fmt(r.sar24 * weight);
-  $('inr24WeightLabel').textContent = weightLabel;
-  $('sar24WeightLabel').textContent = weightLabel;
-  $('spotInr24').textContent = '₹' + fmt(r.spotInr24);
-  $('spotSar24').textContent = 'SAR ' + fmt(r.spotSar24);
+  const selected = getSelectedCurrencies();
+  const grid = $('priceCardsGrid');
 
-  $('inr22').textContent = '₹' + fmt(r.inr22 * weight);
-  $('sar22').textContent = 'SAR ' + fmt(r.sar22 * weight);
-  $('inr22WeightLabel').textContent = weightLabel;
-  $('sar22WeightLabel').textContent = weightLabel;
-  $('spotInr22').textContent = '₹' + fmt(r.spotInr22);
-  $('spotSar22').textContent = 'SAR ' + fmt(r.spotSar22);
+  if (!selected.length || !Object.keys(r.prices).length){
+    grid.innerHTML = `<div class="card full-card"><div class="subnote">Pick at least one currency in Settings below.</div></div>`;
+  } else {
+    let html = '';
+    selected.forEach(code => {
+      const p = r.prices[code];
+      if (!p) return;
+      const meta = currencyMeta(code);
+      const sym = meta.symbol;
+      html += `
+        <div class="card">
+          <div class="karat">24K GOLD</div>
+          <div class="currency-label">${code} ${weightLabel}</div>
+          <div class="amount">${sym}${fmt(p.prem24 * weight)}</div>
+          <div class="unit">spot: ${sym}${fmt(p.spot24)}/g · jeweller ≈ ${sym}${fmt(p.prem24 * weight * making)}</div>
+        </div>
+        <div class="card">
+          <div class="karat">22K GOLD</div>
+          <div class="currency-label">${code} ${weightLabel}</div>
+          <div class="amount">${sym}${fmt(p.prem22 * weight)}</div>
+          <div class="unit">spot: ${sym}${fmt(p.spot22)}/g · jeweller ≈ ${sym}${fmt(p.prem22 * weight * making)}</div>
+        </div>
+      `;
+    });
+    grid.innerHTML = html;
+  }
 
-  const making = 1 + (parseFloat($('makingCharge').value) || 0) / 100;
-  $('jwInr24').textContent = '₹' + fmt(r.inr24 * weight * making);
-  $('jwSar24').textContent = 'SAR ' + fmt(r.sar24 * weight * making);
-  $('jwInr22').textContent = '₹' + fmt(r.inr22 * weight * making);
-  $('jwSar22').textContent = 'SAR ' + fmt(r.sar22 * weight * making);
+  const topLine = selected
+    .filter(code => r.prices[code])
+    .map(code => { const m = currencyMeta(code); return `${m.symbol}${fmt(r.prices[code].spot24)}`; })
+    .join(' / ');
+  $('spotTopLine').textContent = topLine ? `≈ ${topLine} per gram (24K)` : '--';
 
   $('lastUpdated').textContent = new Date(r.timestamp).toLocaleTimeString();
 }
@@ -609,7 +663,38 @@ function renderComparison(r){
   }
 }
 
-/* ---------- GOAL TRACKER ---------- */
+/* ---------- CURRENCY SELECTION ---------- */
+
+function renderCurrencyChips(){
+  const selected = getSelectedCurrencies();
+  const wrap = $('currencyChips');
+  wrap.innerHTML = CURRENCIES.map(c => `
+    <span class="currency-chip ${selected.includes(c.code) ? 'active' : ''}" data-code="${c.code}" title="${c.name}">${c.code}</span>
+  `).join('');
+
+  wrap.querySelectorAll('.currency-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      let sel = getSelectedCurrencies();
+      const code = chip.dataset.code;
+      if (sel.includes(code)){
+        if (sel.length === 1) return; // keep at least one selected
+        sel = sel.filter(c => c !== code);
+      } else {
+        sel.push(code);
+      }
+      localStorage.setItem('goldtracker_currencies', JSON.stringify(sel));
+      renderCurrencyChips();
+      if (lastResult) renderResult(lastResult);
+    });
+  });
+}
+
+function populatePCurrencyOptions(){
+  const sel = $('pCurrency');
+  sel.innerHTML = CURRENCIES.map(c => `<option value="${c.code}">${c.code}</option>`).join('');
+}
+
+
 
 function loadGoal(){
   const goal = JSON.parse(localStorage.getItem('goldtracker_goal') || 'null');
@@ -676,7 +761,7 @@ function renderPurchases(){
       <td>${p.date}</td>
       <td>${p.karat}K</td>
       <td>${parseFloat(p.grams).toFixed(2)}g</td>
-      <td>${p.currency === 'INR' ? '₹' : 'SAR '}${fmt(p.price)}</td>
+      <td>${currencyMeta(p.currency).symbol}${fmt(p.price)} ${p.currency}</td>
       <td class="del" data-idx="${i}">✕</td>
     </tr>
   `).join('');
@@ -691,14 +776,20 @@ function renderPurchases(){
   });
 
   const totalGrams = purchases.reduce((s, p) => s + parseFloat(p.grams || 0), 0);
-  const totalInr = purchases.filter(p => p.currency === 'INR').reduce((s, p) => s + parseFloat(p.price || 0), 0);
-  const totalSar = purchases.filter(p => p.currency === 'SAR').reduce((s, p) => s + parseFloat(p.price || 0), 0);
-  const gramsInInr = purchases.filter(p => p.currency === 'INR').reduce((s, p) => s + parseFloat(p.grams || 0), 0);
-
   $('sumGrams').textContent = totalGrams.toFixed(2) + 'g';
-  $('sumInr').textContent = '₹' + fmt(totalInr);
-  $('sumSar').textContent = 'SAR ' + fmt(totalSar);
-  $('sumAvg').textContent = gramsInInr > 0 ? ('₹' + fmt(totalInr / gramsInInr) + '/g (INR purchases only)') : '--';
+
+  const currenciesUsed = [...new Set(purchases.map(p => p.currency))];
+  const rows = currenciesUsed.map(code => {
+    const meta = currencyMeta(code);
+    const spent = purchases.filter(p => p.currency === code).reduce((s, p) => s + parseFloat(p.price || 0), 0);
+    const grams = purchases.filter(p => p.currency === code).reduce((s, p) => s + parseFloat(p.grams || 0), 0);
+    const avg = grams > 0 ? (meta.symbol + fmt(spent / grams) + '/g') : '--';
+    return `
+      <div class="cmp-row"><span>Total spent (${code})</span><span class="cmp-val">${meta.symbol}${fmt(spent)}</span></div>
+      <div class="cmp-row"><span>Avg cost/gram (${code})</span><span class="cmp-val">${avg}</span></div>
+    `;
+  }).join('');
+  $('sumByCurrency').innerHTML = rows;
 
   renderGoalProgress();
 }
@@ -843,6 +934,10 @@ $('sarPremium').addEventListener('change', (e) => {
   localStorage.setItem('goldtracker_sarPremium', e.target.value);
   fetchGoldPrice();
 });
+$('otherPremium').addEventListener('change', (e) => {
+  localStorage.setItem('goldtracker_otherPremium', e.target.value);
+  fetchGoldPrice();
+});
 
 $('makingCharge').addEventListener('change', (e) => {
   localStorage.setItem('goldtracker_makingCharge', e.target.value);
@@ -876,12 +971,16 @@ $('buyThreshold').addEventListener('change', (e) => {
   if (savedInrPrem !== null) $('inrPremium').value = savedInrPrem;
   const savedSarPrem = localStorage.getItem('goldtracker_sarPremium');
   if (savedSarPrem !== null) $('sarPremium').value = savedSarPrem;
+  const savedOtherPrem = localStorage.getItem('goldtracker_otherPremium');
+  if (savedOtherPrem !== null) $('otherPremium').value = savedOtherPrem;
   const savedMaking = localStorage.getItem('goldtracker_makingCharge');
   if (savedMaking !== null) $('makingCharge').value = savedMaking;
   const savedThreshold = localStorage.getItem('goldtracker_buyThreshold');
   if (savedThreshold !== null) $('buyThreshold').value = savedThreshold;
 
   $('pDate').value = new Date().toISOString().slice(0, 10);
+  renderCurrencyChips();
+  populatePCurrencyOptions();
   renderPurchases();
   loadGoal();
   bootstrapHistoryIfEmpty();
