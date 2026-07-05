@@ -8,141 +8,53 @@
 <meta name="theme-color" content="#d4af37">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<style>
-  :root{
-    --bg:#0d0d0d; --card:#1a1a1a; --gold:#d4af37; --gold-dim:#8a6f1f;
-    --text:#f2f2f2; --muted:#9a9a9a; --green:#4caf50; --red:#e05252;
-    --border:#2a2a2a;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  body{
-    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
-    background:var(--bg); color:var(--text); padding-bottom:40px;
-  }
-  header{
-    padding:22px 20px 16px; text-align:center; border-bottom:1px solid var(--border);
-  }
-  header h1{margin:0; font-size:20px; letter-spacing:0.5px; color:var(--gold); font-weight:700;}
-  header p{margin:6px 0 0; font-size:12px; color:var(--muted);}
-  .status-row{
-    display:flex; justify-content:center; align-items:center; gap:8px;
-    margin-top:10px; font-size:12px; color:var(--muted);
-  }
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
-  .dot.live{background:var(--green); box-shadow:0 0 6px var(--green);}
-  .dot.err{background:var(--red);}
-  main{padding:16px; max-width:480px; margin:0 auto;}
-  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;}
-  .card{
-    background:var(--card); border:1px solid var(--border); border-radius:14px;
-    padding:16px 14px; position:relative; overflow:hidden;
-  }
-  .card::before{
-    content:''; position:absolute; top:0; left:0; right:0; height:3px;
-    background:linear-gradient(90deg, var(--gold-dim), var(--gold));
-  }
-  .card .karat{font-size:12px; color:var(--gold); font-weight:700; letter-spacing:1px;}
-  .card .currency-label{font-size:10px; color:var(--muted); margin-top:2px;}
-  .card .amount{font-size:22px; font-weight:700; margin-top:8px; color:var(--text);}
-  .card .unit{font-size:11px; color:var(--muted);}
-  .full-card{grid-column:1 / -1;}
-  .controls{
-    background:var(--card); border:1px solid var(--border); border-radius:14px;
-    padding:16px; margin-bottom:16px;
-  }
-  .controls h2{font-size:13px; color:var(--gold); margin:0 0 12px; letter-spacing:0.5px;}
-  .row{display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px;}
-  .row:last-child{border-bottom:none;}
-  select, button.btn{
-    background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px;
-    padding:8px 12px; font-size:13px;
-  }
-  button.btn{cursor:pointer;}
-  .primary-btn{
-    width:100%; background:var(--gold); color:#0d0d0d; border:none; border-radius:12px;
-    padding:14px; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:0.3px;
-  }
-  .primary-btn:active{opacity:0.85;}
-  .switch{position:relative; width:42px; height:24px;}
-  .switch input{opacity:0; width:0; height:0;}
-  .slider{
-    position:absolute; cursor:pointer; inset:0; background:#333; border-radius:24px; transition:.2s;
-  }
-  .slider::before{
-    content:''; position:absolute; height:18px; width:18px; left:3px; bottom:3px;
-    background:white; border-radius:50%; transition:.2s;
-  }
-  input:checked + .slider{background:var(--gold);}
-  input:checked + .slider::before{transform:translateX(18px);}
-  .log{
-    background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px;
-  }
-  .log h2{font-size:13px; color:var(--gold); margin:0 0 10px;}
-  .log-entry{font-size:12px; color:var(--muted); padding:6px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;}
-  .log-entry:last-child{border-bottom:none;}
-  .note{font-size:11px; color:var(--muted); text-align:center; margin-top:18px; line-height:1.5; padding:0 10px;}
-  .warn{
-    background:#2a220a; border:1px solid var(--gold-dim); color:#e8d38a; font-size:12px;
-    border-radius:10px; padding:10px 12px; margin-bottom:16px; line-height:1.5;
-  }
-  .section{
-    background:var(--card); border:1px solid var(--border); border-radius:14px;
-    padding:16px; margin-bottom:16px;
-  }
-  .section h2{font-size:13px; color:var(--gold); margin:0 0 12px; letter-spacing:0.5px;}
-  .section h3{font-size:12px; color:var(--text); margin:16px 0 8px; letter-spacing:0.3px;}
-  .subnote{font-size:11px; color:var(--muted); line-height:1.5; margin-top:6px;}
-  .badge{
-    display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px;
-    background:var(--gold); color:#0d0d0d; letter-spacing:0.3px;
-  }
-  .badge.dim{background:#2a2a2a; color:var(--muted); font-weight:400;}
-  .progress-wrap{background:#111; border-radius:10px; height:10px; overflow:hidden; margin:8px 0;}
-  .progress-bar{height:100%; background:linear-gradient(90deg, var(--gold-dim), var(--gold)); transition:width .3s;}
-  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;}
-  .form-grid input, .form-grid select{
-    width:100%; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px;
-    padding:8px 10px; font-size:13px;
-  }
-  .form-grid label{font-size:11px; color:var(--muted); display:block; margin-bottom:4px;}
-  table.plist{width:100%; border-collapse:collapse; font-size:12px; margin-top:10px;}
-  table.plist th{text-align:left; color:var(--muted); font-weight:400; padding:6px 4px; border-bottom:1px solid var(--border);}
-  table.plist td{padding:6px 4px; border-bottom:1px solid var(--border); color:var(--text);}
-  table.plist td.del{color:var(--red); cursor:pointer; text-align:right;}
-  .cmp-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px;}
-  .cmp-row:last-child{border-bottom:none;}
-  .cmp-val{font-weight:700;}
-  details{border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-top:10px;}
-  details summary{cursor:pointer; font-size:13px; color:var(--gold); font-weight:700; list-style:none;}
-  details summary::-webkit-details-marker{display:none;}
-  details p, details li{font-size:12px; color:var(--muted); line-height:1.6;}
-  details ul{padding-left:18px; margin:8px 0;}
-  .export-row{display:flex; gap:10px; margin-top:10px;}
-  .export-row button{flex:1;}
-  .currency-chip{
-    background:#111; border:1px solid var(--border); color:var(--muted); font-size:12px;
-    padding:6px 12px; border-radius:20px; cursor:pointer; user-select:none;
-  }
-  .currency-chip.active{background:var(--gold); color:#0d0d0d; border-color:var(--gold); font-weight:700;}
-</style>
+<link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
+<div class="warn" id="staleBanner" style="display:none;"></div>
+
 <header>
   <h1>◆ GOLD PRICE TRACKER</h1>
-  <p>22K &amp; 24K per gram · INR / SAR</p>
+  <p>Live prices · Portfolio · Goals · Alerts</p>
   <div class="status-row">
     <div class="dot" id="statusDot"></div>
     <span id="statusText">Loading...</span>
   </div>
+  <div class="subnote" id="lastUpdatedText" style="text-align:center; margin-top:4px;">--</div>
 </header>
 
 <main>
 
-  <div class="warn" id="permWarn" style="display:none;">
-    Notifications are off. Tap "Enable Notifications" below so the 2-hourly popup actually appears.
+  <!-- ===================== DASHBOARD ===================== -->
+  <div class="section" id="dashboardSection">
+    <h2>DASHBOARD</h2>
+    <div class="dash-grid">
+      <div class="dash-card">
+        <div class="dash-label">Portfolio value</div>
+        <div class="dash-value" id="dashPortfolioValue">--</div>
+        <div id="dashGainLoss" class="dash-gainloss">--</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-label">Total weight owned</div>
+        <div class="dash-value" id="dashGrams">--</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-label">24K today</div>
+        <div class="dash-value" id="dashPrice24">--</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-label">22K today</div>
+        <div class="dash-value" id="dashPrice22">--</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;">
+      <div class="dash-label" style="margin-bottom:6px;">Top goal</div>
+      <div id="dashGoalMini"></div>
+    </div>
   </div>
 
+  <!-- ===================== LIVE PRICES ===================== -->
   <div class="grid" id="priceCardsGrid"></div>
 
   <div class="grid" style="margin-top:0;">
@@ -154,10 +66,22 @@
     </div>
   </div>
 
-  <button class="primary-btn" id="refreshBtn">Check Price Now</button>
+  <button class="primary-btn" id="refreshBtn" onclick="fetchGoldPrice()">Check Price Now</button>
 
-  <div class="controls" style="margin-top:16px;">
+  <!-- ===================== SETTINGS ===================== -->
+  <div class="section" style="margin-top:16px;">
     <h2>SETTINGS</h2>
+
+    <div class="row" style="display:block;">
+      <span style="display:block; margin-bottom:8px;">Currencies to show</span>
+      <div id="currencyChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+    </div>
+
+    <div class="row">
+      <span>Primary currency (dashboard/portfolio)</span>
+      <select id="primaryCurrencySelect"></select>
+    </div>
+
     <div class="row">
       <span>Notifications</span>
       <label class="switch">
@@ -165,10 +89,10 @@
         <span class="slider"></span>
       </label>
     </div>
-    <div class="row" style="display:block;">
-      <span style="display:block; margin-bottom:8px;">Currencies to show</span>
-      <div id="currencyChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+    <div class="warn" id="permWarn" style="display:none; margin:10px 0 0;">
+      Notifications are off. Enable them above so alerts actually pop up.
     </div>
+
     <div class="row">
       <span>Check interval</span>
       <select id="intervalSelect">
@@ -192,27 +116,19 @@
     </div>
     <div class="row">
       <span>India premium over spot (%)</span>
-      <input type="number" id="inrPremium" value="14" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
+      <input type="number" id="inrPremium" min="0" max="40" step="0.5" class="num-input">
     </div>
     <div class="row">
       <span>Saudi premium over spot (%)</span>
-      <input type="number" id="sarPremium" value="4" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
+      <input type="number" id="sarPremium" min="0" max="40" step="0.5" class="num-input">
     </div>
     <div class="row">
       <span>Other currencies premium (%)</span>
-      <input type="number" id="otherPremium" value="0" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
+      <input type="number" id="otherPremium" min="0" max="40" step="0.5" class="num-input">
     </div>
     <div class="row">
       <span>Typical making charge (%)</span>
-      <input type="number" id="makingCharge" value="12" min="0" max="40" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
-    </div>
-    <div class="row">
-      <span>Buy alert threshold (% below avg)</span>
-      <input type="number" id="buyThreshold" value="3" min="0.5" max="20" step="0.5" style="width:64px; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 8px; text-align:right;">
-    </div>
-    <div class="row">
-      <span>Last updated</span>
-      <span id="lastUpdated" style="color:var(--muted);">--</span>
+      <input type="number" id="makingCharge" min="0" max="40" step="0.5" class="num-input">
     </div>
     <div class="row">
       <span>Next check</span>
@@ -220,59 +136,106 @@
     </div>
   </div>
 
-  <div class="log">
-    <h2>RECENT CHECKS</h2>
-    <div id="logList"><div class="log-entry"><span>No checks yet</span></div></div>
+  <!-- ===================== PORTFOLIO ===================== -->
+  <div class="section">
+    <h2>PORTFOLIO SUMMARY</h2>
+    <div id="portfolioBody"></div>
+    <div class="subnote" style="margin-top:10px;">Current value uses today's local-market (premium) price, not jeweller-inclusive — resale typically doesn't recover making charges, so this is a more realistic valuation.</div>
   </div>
 
+  <!-- ===================== GOALS ===================== -->
   <div class="section">
-    <h2>PRICE TREND <span class="badge dim" id="trendDays">--</span></h2>
-    <div id="buySignal"></div>
-    <svg id="sparkline" viewBox="0 0 300 60" style="width:100%; height:60px; margin-top:8px;"></svg>
-    <div class="subnote" id="trendSubnote">History builds up as you use the app (or on each 2-hourly check) — the more you keep it running, the more useful this gets. A rolling average forms the "buy signal" baseline below.</div>
-  </div>
-
-  <div class="section">
-    <h2>INDIA VS SAUDI (22K, landed in ₹ terms)</h2>
-    <div class="cmp-row">
-      <span>India retail (22K/g)</span>
-      <span class="cmp-val" id="cmpIndia">--</span>
-    </div>
-    <div class="cmp-row">
-      <span>Saudi retail, converted to ₹ (22K/g)</span>
-      <span class="cmp-val" id="cmpSaudi">--</span>
-    </div>
-    <div class="cmp-row">
-      <span id="cmpResult">--</span>
-      <span></span>
-    </div>
-    <div class="subnote">Uses today's USD→INR/SAR rates only — doesn't account for your actual remittance rate, transfer fees, or carrying gold physically across borders (see NRI allowance note below).</div>
-  </div>
-
-  <div class="section">
-    <h2>GOAL TRACKER</h2>
+    <h2>GOALS</h2>
     <div class="form-grid">
       <div>
         <label>Goal name</label>
-        <input type="text" id="goalName" placeholder="Daughter's wedding set">
+        <input type="text" id="goalName" placeholder="e.g. Daughter's wedding set">
       </div>
       <div>
         <label>Target weight (grams)</label>
         <input type="number" id="goalGrams" placeholder="e.g. 150">
       </div>
-    </div>
-    <button class="btn" id="saveGoalBtn" style="width:100%; margin-top:4px;">Save goal</button>
-    <div id="goalDisplay" style="margin-top:14px; display:none;">
-      <div style="display:flex; justify-content:space-between; font-size:13px;">
-        <span id="goalLabel" style="color:var(--gold); font-weight:700;">--</span>
-        <span id="goalPct" style="color:var(--muted);">--</span>
+      <div>
+        <label>Counts purchases of</label>
+        <select id="goalKarat">
+          <option value="any">Any karat</option>
+          <option value="22">22K only</option>
+          <option value="24">24K only</option>
+        </select>
       </div>
-      <div class="progress-wrap"><div class="progress-bar" id="goalBar" style="width:0%;"></div></div>
-      <div class="subnote" id="goalSubnote">--</div>
     </div>
+    <button class="btn" id="addGoalBtn" style="width:100%;">Add goal</button>
+    <div id="goalsList" style="margin-top:14px;"></div>
   </div>
 
+  <!-- ===================== ALERTS ===================== -->
   <div class="section">
+    <h2>ALERTS</h2>
+    <div class="row">
+      <span>Alert type</span>
+      <select id="alertType">
+        <option value="drop_vs_avg">Price drop vs 30-day average</option>
+        <option value="price_target">Price target reached</option>
+        <option value="goal_milestone">Goal milestone reached</option>
+      </select>
+    </div>
+
+    <div id="alertFieldsThreshold" class="form-grid" style="margin-top:8px;">
+      <div>
+        <label>Currency</label>
+        <select id="alertCurrencyThreshold"></select>
+      </div>
+      <div>
+        <label>Karat</label>
+        <select id="alertKaratThreshold"><option value="24">24K</option><option value="22">22K</option></select>
+      </div>
+      <div>
+        <label>Drop threshold (%)</label>
+        <input type="number" id="alertThresholdPct" value="3" min="0.5" step="0.5">
+      </div>
+    </div>
+
+    <div id="alertFieldsTarget" class="form-grid" style="margin-top:8px; display:none;">
+      <div>
+        <label>Currency</label>
+        <select id="alertCurrencyTarget"></select>
+      </div>
+      <div>
+        <label>Karat</label>
+        <select id="alertKaratTarget"><option value="24">24K</option><option value="22">22K</option></select>
+      </div>
+      <div>
+        <label>Direction</label>
+        <select id="alertDirection"><option value="below">Falls below</option><option value="above">Rises above</option></select>
+      </div>
+      <div>
+        <label>Target price (per gram)</label>
+        <input type="number" id="alertThresholdValue" placeholder="e.g. 9000" step="0.01">
+      </div>
+    </div>
+
+    <div id="alertFieldsGoal" class="form-grid" style="margin-top:8px; display:none;">
+      <div>
+        <label>Goal</label>
+        <select id="alertGoalSelect"></select>
+      </div>
+      <div>
+        <label>Milestone</label>
+        <select id="alertMilestonePct">
+          <option value="25">25%</option>
+          <option value="50">50%</option>
+          <option value="75">75%</option>
+          <option value="100">100%</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn" id="addAlertBtn" style="width:100%; margin-top:8px;">Add alert</button>
+    <div id="alertsList" style="margin-top:14px;"></div>
+  </div>
+
+  <!-- ===================== PURCHASES ===================== -->
+  <div class="section" id="purchasesSection">
     <h2>MY PURCHASES</h2>
     <div class="form-grid">
       <div>
@@ -300,19 +263,44 @@
         <input type="text" id="pJeweller" placeholder="e.g. Malabar Gold">
       </div>
     </div>
-    <button class="btn" id="addPurchaseBtn" style="width:100%;">Add purchase</button>
-
-    <div id="purchaseSummary" style="margin-top:14px; display:none;">
-      <div class="cmp-row"><span>Total weight bought</span><span class="cmp-val" id="sumGrams">--</span></div>
-      <div id="sumByCurrency"></div>
+    <div style="margin-bottom:8px;">
+      <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">Notes (optional)</label>
+      <input type="text" id="pNotes" placeholder="e.g. bridal necklace, hallmark BIS" style="width:100%; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px;">
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn" id="addPurchaseBtn" style="flex:1;">Add purchase</button>
+      <button class="btn" id="cancelEditBtn" style="display:none;">Cancel</button>
     </div>
 
     <table class="plist" id="purchaseTable" style="display:none;">
-      <thead><tr><th>Date</th><th>Karat</th><th>Grams</th><th>Paid</th><th></th></tr></thead>
+      <thead><tr><th>Date</th><th>Karat</th><th>Grams</th><th>Paid</th><th>Notes</th><th></th><th></th></tr></thead>
       <tbody id="purchaseTbody"></tbody>
     </table>
   </div>
 
+  <!-- ===================== TREND ===================== -->
+  <div class="section">
+    <h2>PRICE TREND <span class="badge dim" id="trendDays">--</span></h2>
+    <svg id="sparkline" viewBox="0 0 300 60" style="width:100%; height:60px; margin-top:8px;"></svg>
+    <div class="subnote">History builds up as you use the app — the longer it runs, the more useful this gets.</div>
+  </div>
+
+  <!-- ===================== COMPARISON ===================== -->
+  <div class="section">
+    <h2>INDIA VS SAUDI (22K, landed in ₹ terms)</h2>
+    <div class="cmp-row"><span>India retail (22K/g)</span><span class="cmp-val" id="cmpIndia">--</span></div>
+    <div class="cmp-row"><span>Saudi retail, converted to ₹ (22K/g)</span><span class="cmp-val" id="cmpSaudi">--</span></div>
+    <div class="cmp-row"><span id="cmpResult">--</span><span></span></div>
+    <div class="subnote">Uses today's exchange rate only — doesn't account for your actual remittance rate or transfer fees.</div>
+  </div>
+
+  <!-- ===================== RECENT CHECKS ===================== -->
+  <div class="section">
+    <h2>RECENT CHECKS</h2>
+    <div id="logList"><div class="log-entry"><span>No checks yet</span></div></div>
+  </div>
+
+  <!-- ===================== REFERENCE ===================== -->
   <div class="section">
     <h2>REFERENCE</h2>
     <details>
@@ -321,16 +309,16 @@
       <ul>
         <li>Male traveller: 20 grams duty-free</li>
         <li>Female traveller: 40 grams duty-free</li>
-        <li>Children with 1+ year abroad: same limits as above, by gender</li>
       </ul>
-      <p>Beyond that, and for gold bars/coins (which get no duty-free allowance at all), a concessional customs duty of roughly 6% applies if you've been abroad 6+ months — up to 1kg total per passenger, must be declared at the Red Channel. Shorter stays abroad lose the concessional rate and pay a much higher standard duty.</p>
-      <p class="subnote">Rules and rates change with each Union Budget — verify current figures at cbic.gov.in or the ATITHI app before travelling with jewellery near these limits.</p>
+      <p>Beyond that, and for gold bars/coins (no duty-free allowance at all), a concessional customs duty of roughly 6% applies if abroad 6+ months — up to 1kg per passenger, must be declared at the Red Channel.</p>
+      <p class="subnote">Rules change with each Union Budget — verify at cbic.gov.in before travelling with jewellery near these limits.</p>
     </details>
   </div>
 
+  <!-- ===================== BACKUP ===================== -->
   <div class="section">
     <h2>BACKUP</h2>
-    <div class="subnote">Everything above (purchases, goal, price history, settings) lives only in this browser's local storage. Export it periodically so you don't lose it if you clear browser data or switch devices.</div>
+    <div class="subnote">Everything above lives only in this browser's local storage. Export it periodically so you don't lose it if you clear browser data or switch devices.</div>
     <div class="export-row">
       <button class="btn" id="exportBtn">Export data</button>
       <label class="btn" style="text-align:center; cursor:pointer;">Import data<input type="file" id="importFile" accept=".json" style="display:none;"></label>
@@ -340,680 +328,14 @@
   </div>
 
   <div class="note">
-    Base data: gold-api.com (live XAU spot) and open.er-api.com (USD→INR/SAR/16 major currency rates).
-    22K uses 91.67% purity of 24K. Pick which currencies to show in Settings below — India and Saudi
-    get their own dedicated premium %, everything else uses a shared "other currencies" premium
-    (defaults to 0%, since duty/GST/dealer-margin norms vary a lot by country — set it if you know
-    your local market's typical markup). Jewellers also add making charges on top, approximated by
-    the making-charge % setting.
-    <br><br>
-    For popups to fire every 2 hours reliably, keep this app installed to your home screen and open/backgrounded (not force-closed). Android may still delay background timers on some phones — if that happens, disable battery optimization for this app/browser in phone settings.
+    Data: gold-api.com (live XAU spot) and open.er-api.com (FX rates). 22K uses 91.67% purity of 24K.
+    Background checks run on an in-page timer — reliable while this tab/app is open or backgrounded normally,
+    but very aggressive OEM battery managers (some Xiaomi/Oppo/Vivo builds) can delay it unless you allow
+    unrestricted battery usage for this app/browser.
   </div>
 
 </main>
 
-<script>
-const GRAMS_PER_OZ = 31.1034768;
-const $ = (id) => document.getElementById(id);
-
-const CURRENCIES = [
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-  { code: 'SAR', symbol: 'SAR ', name: 'Saudi Riyal' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'AED', symbol: 'AED ', name: 'UAE Dirham' },
-  { code: 'KWD', symbol: 'KWD ', name: 'Kuwaiti Dinar' },
-  { code: 'QAR', symbol: 'QAR ', name: 'Qatari Riyal' },
-  { code: 'BHD', symbol: 'BHD ', name: 'Bahraini Dinar' },
-  { code: 'OMR', symbol: 'OMR ', name: 'Omani Rial' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
-  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' }
-];
-
-function getSelectedCurrencies(){
-  const saved = JSON.parse(localStorage.getItem('goldtracker_currencies') || '["INR","SAR"]');
-  return saved.length ? saved : ['INR'];
-}
-
-function getPremiumPctFor(code){
-  if (code === 'INR') return parseFloat($('inrPremium').value) || 0;
-  if (code === 'SAR') return parseFloat($('sarPremium').value) || 0;
-  return parseFloat($('otherPremium').value) || 0;
-}
-
-function currencyMeta(code){
-  return CURRENCIES.find(c => c.code === code) || { code, symbol: code + ' ', name: code };
-}
-let intervalHandle = null;
-let countdownHandle = null;
-let nextCheckTime = null;
-let lastResult = null;
-
-function fmt(n){
-  return Number(n).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
-}
-
-function setStatus(state, text){
-  const dot = $('statusDot');
-  dot.className = 'dot' + (state === 'live' ? ' live' : state === 'err' ? ' err' : '');
-  $('statusText').textContent = text;
-}
-
-async function fetchGoldPrice(){
-  setStatus('', 'Fetching price...');
-  try {
-    const goldRes = await fetch('https://api.gold-api.com/price/XAU');
-    if(!goldRes.ok) throw new Error('gold-api error ' + goldRes.status);
-    const goldData = await goldRes.json();
-    const usdPerOz = goldData.price ?? goldData.rate ?? goldData.rates?.XAU ?? goldData.data?.price;
-    if (!usdPerOz) throw new Error('Unexpected gold price response shape');
-
-    const fxRes = await fetch('https://open.er-api.com/v6/latest/USD');
-    if(!fxRes.ok) throw new Error('fx-api error ' + fxRes.status);
-    const fxData = await fxRes.json();
-    const inrRate = fxData.rates.INR;
-    const sarRate = fxData.rates.SAR;
-
-    const usd24k = usdPerOz / GRAMS_PER_OZ;
-    const usd22k = usd24k * (22/24);
-
-    const prices = {};
-    CURRENCIES.forEach(c => {
-      const rate = fxData.rates[c.code];
-      if (!rate) return;
-      const premium = 1 + getPremiumPctFor(c.code) / 100;
-      prices[c.code] = {
-        rate,
-        spot24: usd24k * rate,
-        spot22: usd22k * rate,
-        prem24: usd24k * rate * premium,
-        prem22: usd22k * rate * premium
-      };
-    });
-
-    const inrPremium = 1 + getPremiumPctFor('INR') / 100;
-    const sarPremium = 1 + getPremiumPctFor('SAR') / 100;
-
-    const result = {
-      usdPerOz,
-      prices,
-      inr24: usd24k * inrRate * inrPremium,
-      inr22: usd22k * inrRate * inrPremium,
-      sar24: usd24k * sarRate * sarPremium,
-      sar22: usd22k * sarRate * sarPremium,
-      spotInr24: usd24k * inrRate,
-      spotInr22: usd22k * inrRate,
-      spotSar24: usd24k * sarRate,
-      spotSar22: usd22k * sarRate,
-      timestamp: Date.now()
-    };
-
-    renderResult(result);
-    saveToLog(result);
-    saveHistoryPoint(result);
-    renderComparison(result);
-    setStatus('live', 'Live');
-    lastResult = result;
-    localStorage.setItem('goldtracker_last', JSON.stringify(result));
-
-    checkBuySignal(result);
-
-    if ($('notifToggle').checked && Notification.permission === 'granted') {
-      showNotification(result);
-    }
-    return result;
-  } catch (err) {
-    console.error(err);
-    setStatus('err', 'Fetch failed - will retry');
-    return null;
-  }
-}
-
-function renderResult(r){
-  const weight = parseFloat($('weightSelect').value) || 1;
-  const weightLabel = weight === 1 ? 'per gram' : (weight === 11.664 ? 'per tola' : `for ${weight}g`);
-  const making = 1 + (parseFloat($('makingCharge').value) || 0) / 100;
-
-  $('spotUsd').textContent = '$' + fmt(r.usdPerOz);
-
-  const selected = getSelectedCurrencies();
-  const grid = $('priceCardsGrid');
-
-  if (!selected.length || !Object.keys(r.prices).length){
-    grid.innerHTML = `<div class="card full-card"><div class="subnote">Pick at least one currency in Settings below.</div></div>`;
-  } else {
-    let html = '';
-    selected.forEach(code => {
-      const p = r.prices[code];
-      if (!p) return;
-      const meta = currencyMeta(code);
-      const sym = meta.symbol;
-      html += `
-        <div class="card">
-          <div class="karat">24K GOLD</div>
-          <div class="currency-label">${code} ${weightLabel}</div>
-          <div class="amount">${sym}${fmt(p.prem24 * weight)}</div>
-          <div class="unit">spot: ${sym}${fmt(p.spot24)}/g · jeweller ≈ ${sym}${fmt(p.prem24 * weight * making)}</div>
-        </div>
-        <div class="card">
-          <div class="karat">22K GOLD</div>
-          <div class="currency-label">${code} ${weightLabel}</div>
-          <div class="amount">${sym}${fmt(p.prem22 * weight)}</div>
-          <div class="unit">spot: ${sym}${fmt(p.spot22)}/g · jeweller ≈ ${sym}${fmt(p.prem22 * weight * making)}</div>
-        </div>
-      `;
-    });
-    grid.innerHTML = html;
-  }
-
-  const topLine = selected
-    .filter(code => r.prices[code])
-    .map(code => { const m = currencyMeta(code); return `${m.symbol}${fmt(r.prices[code].spot24)}`; })
-    .join(' / ');
-  $('spotTopLine').textContent = topLine ? `≈ ${topLine} per gram (24K)` : '--';
-
-  $('lastUpdated').textContent = new Date(r.timestamp).toLocaleTimeString();
-}
-
-function showNotification(r){
-  const body = `24K: ₹${fmt(r.inr24)} / SAR ${fmt(r.sar24)}   ·   22K: ₹${fmt(r.inr22)} / SAR ${fmt(r.sar22)}  (per gram)`;
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready.then((reg) => {
-      reg.showNotification('Gold Price Update', {
-        body, icon: './icon-192.png', badge: './icon-192.png',
-        tag: 'gold-price', renotify: true
-      });
-    });
-  } else {
-    new Notification('Gold Price Update', { body, icon: './icon-192.png' });
-  }
-}
-
-function saveToLog(r){
-  let log = JSON.parse(localStorage.getItem('goldtracker_log') || '[]');
-  log.unshift(r);
-  log = log.slice(0, 8);
-  localStorage.setItem('goldtracker_log', JSON.stringify(log));
-  renderLog(log);
-}
-
-function renderLog(log){
-  const el = $('logList');
-  if (!log.length){ el.innerHTML = '<div class="log-entry"><span>No checks yet</span></div>'; return; }
-  el.innerHTML = log.map(r => `
-    <div class="log-entry">
-      <span>${new Date(r.timestamp).toLocaleString()}</span>
-      <span>24K ₹${fmt(r.inr24)} / SAR ${fmt(r.sar24)}</span>
-    </div>
-  `).join('');
-}
-
-/* ---------- PRICE HISTORY, TREND CHART, BUY SIGNAL ---------- */
-
-function saveHistoryPoint(r){
-  let hist = JSON.parse(localStorage.getItem('goldtracker_history') || '[]');
-  hist.push({ t: r.timestamp, usd: r.usdPerOz });
-  if (hist.length > 600) hist = hist.slice(hist.length - 600);
-  localStorage.setItem('goldtracker_history', JSON.stringify(hist));
-  renderTrend(hist);
-}
-
-async function bootstrapHistoryIfEmpty(){
-  const existing = JSON.parse(localStorage.getItem('goldtracker_history') || '[]');
-  if (existing.length > 5) { renderTrend(existing); return; }
-  try {
-    const res = await fetch('https://freegoldapi.com/data/latest.json');
-    const data = await res.json();
-    const arr = Array.isArray(data) ? data : (data.data || data.prices || []);
-    if (Array.isArray(arr) && arr.length){
-      const seeded = arr.slice(-60).map(d => ({
-        t: new Date(d.date || d.t || d.timestamp).getTime(),
-        usd: d.price || d.usd || d.value
-      })).filter(p => p.t && p.usd);
-      if (seeded.length){
-        localStorage.setItem('goldtracker_history', JSON.stringify(seeded));
-        renderTrend(seeded);
-      }
-    }
-  } catch (e) {
-    // best-effort only - history will build organically from regular checks either way
-  }
-}
-
-function rollingAverage(hist, days){
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  const inWindow = hist.filter(p => p.t >= cutoff);
-  const use = inWindow.length >= 3 ? inWindow : hist;
-  if (!use.length) return null;
-  return use.reduce((sum, p) => sum + p.usd, 0) / use.length;
-}
-
-function renderTrend(hist){
-  if (!hist.length) return;
-  const avg30 = rollingAverage(hist, 30);
-  const spanDays = hist.length > 1 ? Math.max(1, Math.round((hist[hist.length-1].t - hist[0].t) / 86400000)) : 0;
-  $('trendDays').textContent = spanDays > 0 ? `${spanDays}-day history (${hist.length} checks)` : 'building history...';
-
-  // sparkline
-  const points = hist.slice(-60);
-  const svg = $('sparkline');
-  if (points.length < 2){
-    svg.innerHTML = `<text x="150" y="34" text-anchor="middle" fill="#666" font-size="11">Collecting data — check back after a few checks</text>`;
-    return;
-  }
-  const vals = points.map(p => p.usd);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const range = (max - min) || 1;
-  const w = 300, h = 60, pad = 4;
-  const coords = points.map((p, i) => {
-    const x = pad + (i / (points.length - 1)) * (w - pad * 2);
-    const y = h - pad - ((p.usd - min) / range) * (h - pad * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  svg.innerHTML = `
-    <polyline points="${coords}" fill="none" stroke="#d4af37" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-  `;
-}
-
-function checkBuySignal(r){
-  const hist = JSON.parse(localStorage.getItem('goldtracker_history') || '[]');
-  const avg = rollingAverage(hist, 30);
-  const el = $('buySignal');
-  if (!avg || hist.length < 5){
-    el.innerHTML = `<span class="badge dim">Not enough history yet for a buy signal</span>`;
-    return;
-  }
-  const threshold = parseFloat($('buyThreshold').value) || 3;
-  const dropPct = ((avg - r.usdPerOz) / avg) * 100;
-  const wasSignalled = localStorage.getItem('goldtracker_lastSignal') === '1';
-
-  if (dropPct >= threshold){
-    el.innerHTML = `<span class="badge">Below recent average by ${dropPct.toFixed(1)}% — possible buy window</span>`;
-    if (!wasSignalled && $('notifToggle').checked && Notification.permission === 'granted'){
-      const body = `Spot is ${dropPct.toFixed(1)}% below its ${Math.min(30, Math.round((Date.now()-hist[0].t)/86400000))}-day average. 24K: ₹${fmt(r.inr24)} · 22K: ₹${fmt(r.inr22)} per gram.`;
-      if ('serviceWorker' in navigator){
-        navigator.serviceWorker.ready.then((reg) => reg.showNotification('Gold buy signal', { body, icon: './icon-192.png', tag: 'gold-buy-signal' }));
-      }
-    }
-    localStorage.setItem('goldtracker_lastSignal', '1');
-  } else {
-    el.innerHTML = `<span class="badge dim">${dropPct >= 0 ? dropPct.toFixed(1)+'% below' : Math.abs(dropPct).toFixed(1)+'% above'} recent average — no signal</span>`;
-    localStorage.setItem('goldtracker_lastSignal', '0');
-  }
-}
-
-/* ---------- INDIA VS SAUDI COMPARISON ---------- */
-
-function renderComparison(r){
-  const sarToInr = r.spotSar24 ? (r.spotInr24 / r.spotSar24) : null; // implied fx via spot, robust to premium differences
-  if (!sarToInr) return;
-  const saudiInInr = r.sar22 * sarToInr;
-  $('cmpIndia').textContent = '₹' + fmt(r.inr22);
-  $('cmpSaudi').textContent = '₹' + fmt(saudiInInr);
-  const diffPct = ((r.inr22 - saudiInInr) / saudiInInr) * 100;
-  if (Math.abs(diffPct) < 0.5){
-    $('cmpResult').textContent = 'Roughly the same in both markets right now';
-  } else if (diffPct > 0){
-    $('cmpResult').textContent = `Saudi is ~${diffPct.toFixed(1)}% cheaper right now`;
-  } else {
-    $('cmpResult').textContent = `India is ~${Math.abs(diffPct).toFixed(1)}% cheaper right now`;
-  }
-}
-
-/* ---------- CURRENCY SELECTION ---------- */
-
-function renderCurrencyChips(){
-  const selected = getSelectedCurrencies();
-  const wrap = $('currencyChips');
-  wrap.innerHTML = CURRENCIES.map(c => `
-    <span class="currency-chip ${selected.includes(c.code) ? 'active' : ''}" data-code="${c.code}" title="${c.name}">${c.code}</span>
-  `).join('');
-
-  wrap.querySelectorAll('.currency-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      let sel = getSelectedCurrencies();
-      const code = chip.dataset.code;
-      if (sel.includes(code)){
-        if (sel.length === 1) return; // keep at least one selected
-        sel = sel.filter(c => c !== code);
-      } else {
-        sel.push(code);
-      }
-      localStorage.setItem('goldtracker_currencies', JSON.stringify(sel));
-      renderCurrencyChips();
-      if (lastResult) renderResult(lastResult);
-    });
-  });
-}
-
-function populatePCurrencyOptions(){
-  const sel = $('pCurrency');
-  sel.innerHTML = CURRENCIES.map(c => `<option value="${c.code}">${c.code}</option>`).join('');
-}
-
-
-
-function loadGoal(){
-  const goal = JSON.parse(localStorage.getItem('goldtracker_goal') || 'null');
-  if (goal){
-    $('goalName').value = goal.name || '';
-    $('goalGrams').value = goal.grams || '';
-  }
-  renderGoalProgress();
-}
-
-function renderGoalProgress(){
-  const goal = JSON.parse(localStorage.getItem('goldtracker_goal') || 'null');
-  if (!goal || !goal.grams){ $('goalDisplay').style.display = 'none'; return; }
-  const purchases = JSON.parse(localStorage.getItem('goldtracker_purchases') || '[]');
-  const totalGrams = purchases.reduce((sum, p) => sum + parseFloat(p.grams || 0), 0);
-  const pct = Math.min(100, (totalGrams / goal.grams) * 100);
-  const remaining = Math.max(0, goal.grams - totalGrams);
-
-  $('goalDisplay').style.display = 'block';
-  $('goalLabel').textContent = goal.name || 'Goal';
-  $('goalPct').textContent = `${totalGrams.toFixed(2)}g / ${goal.grams}g`;
-  $('goalBar').style.width = pct.toFixed(1) + '%';
-
-  if (remaining > 0 && lastResult){
-    const making = 1 + (parseFloat($('makingCharge').value) || 0) / 100;
-    const estInr = remaining * lastResult.inr22 * making;
-    const estSar = remaining * lastResult.sar22 * making;
-    $('goalSubnote').textContent = `${remaining.toFixed(2)}g remaining — roughly ₹${fmt(estInr)} / SAR ${fmt(estSar)} at today's 22K jeweller-inclusive rate.`;
-  } else if (remaining <= 0){
-    $('goalSubnote').textContent = `Goal reached based on total weight purchased. 🎉`;
-  } else {
-    $('goalSubnote').textContent = `${remaining.toFixed(2)}g remaining.`;
-  }
-}
-
-$('saveGoalBtn').addEventListener('click', () => {
-  const name = $('goalName').value.trim() || 'Gold goal';
-  const grams = parseFloat($('goalGrams').value);
-  if (!grams || grams <= 0){ alert('Enter a target weight in grams.'); return; }
-  localStorage.setItem('goldtracker_goal', JSON.stringify({ name, grams }));
-  renderGoalProgress();
-});
-
-/* ---------- PURCHASE LOG ---------- */
-
-function renderPurchases(){
-  const purchases = JSON.parse(localStorage.getItem('goldtracker_purchases') || '[]');
-  const tbody = $('purchaseTbody');
-  const table = $('purchaseTable');
-  const summary = $('purchaseSummary');
-
-  if (!purchases.length){
-    table.style.display = 'none';
-    summary.style.display = 'none';
-    renderGoalProgress();
-    return;
-  }
-
-  table.style.display = '';
-  summary.style.display = 'block';
-
-  tbody.innerHTML = purchases.map((p, i) => `
-    <tr>
-      <td>${p.date}</td>
-      <td>${p.karat}K</td>
-      <td>${parseFloat(p.grams).toFixed(2)}g</td>
-      <td>${currencyMeta(p.currency).symbol}${fmt(p.price)} ${p.currency}</td>
-      <td class="del" data-idx="${i}">✕</td>
-    </tr>
-  `).join('');
-
-  tbody.querySelectorAll('.del').forEach(td => {
-    td.addEventListener('click', () => {
-      const idx = parseInt(td.dataset.idx, 10);
-      purchases.splice(idx, 1);
-      localStorage.setItem('goldtracker_purchases', JSON.stringify(purchases));
-      renderPurchases();
-    });
-  });
-
-  const totalGrams = purchases.reduce((s, p) => s + parseFloat(p.grams || 0), 0);
-  $('sumGrams').textContent = totalGrams.toFixed(2) + 'g';
-
-  const currenciesUsed = [...new Set(purchases.map(p => p.currency))];
-  const rows = currenciesUsed.map(code => {
-    const meta = currencyMeta(code);
-    const spent = purchases.filter(p => p.currency === code).reduce((s, p) => s + parseFloat(p.price || 0), 0);
-    const grams = purchases.filter(p => p.currency === code).reduce((s, p) => s + parseFloat(p.grams || 0), 0);
-    const avg = grams > 0 ? (meta.symbol + fmt(spent / grams) + '/g') : '--';
-    return `
-      <div class="cmp-row"><span>Total spent (${code})</span><span class="cmp-val">${meta.symbol}${fmt(spent)}</span></div>
-      <div class="cmp-row"><span>Avg cost/gram (${code})</span><span class="cmp-val">${avg}</span></div>
-    `;
-  }).join('');
-  $('sumByCurrency').innerHTML = rows;
-
-  renderGoalProgress();
-}
-
-$('addPurchaseBtn').addEventListener('click', () => {
-  const date = $('pDate').value || new Date().toISOString().slice(0, 10);
-  const karat = $('pKarat').value;
-  const grams = parseFloat($('pGrams').value);
-  const price = parseFloat($('pPrice').value);
-  const currency = $('pCurrency').value;
-  const jeweller = $('pJeweller').value.trim();
-
-  if (!grams || grams <= 0 || !price || price <= 0){
-    alert('Enter both weight and price paid.');
-    return;
-  }
-
-  const purchases = JSON.parse(localStorage.getItem('goldtracker_purchases') || '[]');
-  purchases.push({ date, karat, grams, price, currency, jeweller });
-  localStorage.setItem('goldtracker_purchases', JSON.stringify(purchases));
-
-  $('pGrams').value = ''; $('pPrice').value = ''; $('pJeweller').value = '';
-  renderPurchases();
-});
-
-/* ---------- EXPORT / IMPORT ---------- */
-
-$('exportBtn').addEventListener('click', () => {
-  const data = {};
-  Object.keys(localStorage).forEach(k => {
-    if (k.startsWith('goldtracker_')) data[k] = localStorage.getItem(k);
-  });
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `gold-tracker-backup-${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-$('importFile').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const data = JSON.parse(reader.result);
-      Object.keys(data).forEach(k => {
-        if (k.startsWith('goldtracker_')) localStorage.setItem(k, data[k]);
-      });
-      alert('Data restored. Reloading...');
-      location.reload();
-    } catch (err) {
-      alert('Could not read that file — make sure it\'s a backup exported from this app.');
-    }
-  };
-  reader.readAsText(file);
-});
-
-$('forceRefreshBtn').addEventListener('click', async () => {
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister()));
-    }
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
-    }
-  } catch (e) {
-    console.error('Force refresh cleanup failed', e);
-  }
-  location.reload(true);
-});
-
-function scheduleNext(){
-  clearInterval(intervalHandle);
-  clearInterval(countdownHandle);
-  const minutes = parseInt($('intervalSelect').value, 10);
-  const ms = minutes * 60 * 1000;
-  nextCheckTime = Date.now() + ms;
-  intervalHandle = setInterval(() => {
-    fetchGoldPrice();
-    nextCheckTime = Date.now() + ms;
-  }, ms);
-  countdownHandle = setInterval(updateCountdown, 1000);
-  localStorage.setItem('goldtracker_interval', minutes);
-}
-
-function updateCountdown(){
-  if (!nextCheckTime) return;
-  const diff = Math.max(0, nextCheckTime - Date.now());
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  const s = Math.floor((diff % 60000) / 1000);
-  $('nextCheck').textContent = `${h}h ${m}m ${s}s`;
-}
-
-async function requestNotifPermission(){
-  if (!('Notification' in window)) {
-    alert('This browser does not support notifications.');
-    return false;
-  }
-  if (Notification.permission === 'granted') return true;
-  const perm = await Notification.requestPermission();
-  return perm === 'granted';
-}
-
-async function registerServiceWorker(){
-  if ('serviceWorker' in navigator) {
-    try {
-      const reg = await navigator.serviceWorker.register('./sw.js');
-      // Best-effort periodic background sync (Chrome/Android only, not guaranteed timing)
-      if ('periodicSync' in reg) {
-        try {
-          const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
-          if (status.state === 'granted') {
-            await reg.periodicSync.register('gold-price-check', {
-              minInterval: 2 * 60 * 60 * 1000
-            });
-          }
-        } catch (e) { /* not supported, ignore */ }
-      }
-    } catch (e) {
-      console.error('SW registration failed', e);
-    }
-  }
-}
-
-$('refreshBtn').addEventListener('click', fetchGoldPrice);
-
-$('notifToggle').addEventListener('change', async (e) => {
-  if (e.target.checked) {
-    const granted = await requestNotifPermission();
-    if (!granted) {
-      e.target.checked = false;
-      $('permWarn').style.display = 'block';
-    } else {
-      $('permWarn').style.display = 'none';
-    }
-  }
-  localStorage.setItem('goldtracker_notif', e.target.checked ? '1' : '0');
-});
-
-$('weightSelect').addEventListener('change', (e) => {
-  localStorage.setItem('goldtracker_weight', e.target.value);
-  if (lastResult) renderResult(lastResult);
-});
-
-$('intervalSelect').addEventListener('change', scheduleNext);
-
-$('inrPremium').addEventListener('change', (e) => {
-  localStorage.setItem('goldtracker_inrPremium', e.target.value);
-  fetchGoldPrice();
-});
-$('sarPremium').addEventListener('change', (e) => {
-  localStorage.setItem('goldtracker_sarPremium', e.target.value);
-  fetchGoldPrice();
-});
-$('otherPremium').addEventListener('change', (e) => {
-  localStorage.setItem('goldtracker_otherPremium', e.target.value);
-  fetchGoldPrice();
-});
-
-$('makingCharge').addEventListener('change', (e) => {
-  localStorage.setItem('goldtracker_makingCharge', e.target.value);
-  if (lastResult) { renderResult(lastResult); renderGoalProgress(); }
-});
-
-$('buyThreshold').addEventListener('change', (e) => {
-  localStorage.setItem('goldtracker_buyThreshold', e.target.value);
-  if (lastResult) checkBuySignal(lastResult);
-});
-
-// Init
-(function init(){
-  registerServiceWorker();
-
-  const cachedLast = localStorage.getItem('goldtracker_last');
-  if (cachedLast) { lastResult = JSON.parse(cachedLast); }
-
-  const savedWeight = localStorage.getItem('goldtracker_weight');
-  if (savedWeight) $('weightSelect').value = savedWeight;
-
-  if (lastResult) renderResult(lastResult);
-
-  const cachedLog = JSON.parse(localStorage.getItem('goldtracker_log') || '[]');
-  renderLog(cachedLog);
-
-  const savedInterval = localStorage.getItem('goldtracker_interval');
-  if (savedInterval) $('intervalSelect').value = savedInterval;
-
-  const savedInrPrem = localStorage.getItem('goldtracker_inrPremium');
-  if (savedInrPrem !== null) $('inrPremium').value = savedInrPrem;
-  const savedSarPrem = localStorage.getItem('goldtracker_sarPremium');
-  if (savedSarPrem !== null) $('sarPremium').value = savedSarPrem;
-  const savedOtherPrem = localStorage.getItem('goldtracker_otherPremium');
-  if (savedOtherPrem !== null) $('otherPremium').value = savedOtherPrem;
-  const savedMaking = localStorage.getItem('goldtracker_makingCharge');
-  if (savedMaking !== null) $('makingCharge').value = savedMaking;
-  const savedThreshold = localStorage.getItem('goldtracker_buyThreshold');
-  if (savedThreshold !== null) $('buyThreshold').value = savedThreshold;
-
-  $('pDate').value = new Date().toISOString().slice(0, 10);
-  renderCurrencyChips();
-  populatePCurrencyOptions();
-  renderPurchases();
-  loadGoal();
-  bootstrapHistoryIfEmpty();
-  if (lastResult) renderComparison(lastResult);
-
-  const notifPref = localStorage.getItem('goldtracker_notif');
-  if (notifPref === '1' && Notification.permission === 'granted') {
-    $('notifToggle').checked = true;
-  } else if (notifPref === '1') {
-    $('permWarn').style.display = 'block';
-  }
-
-  fetchGoldPrice();
-  scheduleNext();
-})();
-</script>
+<script src="./app.js"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'gold-tracker-v2';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE_NAME = 'gold-tracker-v3';
+const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -8,21 +8,18 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Never cache the live price/rate API calls - only cache app shell
   if (event.request.url.includes('gold-api.com') || event.request.url.includes('er-api.com')) {
-    return;
+    return; // never cache live price/rate calls
   }
-  // Network-first for the HTML page itself, so updates show up without manual cache clearing.
-  // Falls back to cache only if offline.
-  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+  // Network-first for the HTML/CSS/JS app shell, so updates show up without manual cache clearing.
+  if (event.request.mode === 'navigate' || event.request.destination === 'document' ||
+      event.request.url.endsWith('.js') || event.request.url.endsWith('.css')) {
     event.respondWith(
       fetch(event.request)
         .then((res) => {
@@ -34,27 +31,21 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
+  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
 });
 
-// Best-effort: Chrome on Android supports Periodic Background Sync for installed PWAs
-// with sufficient "site engagement". This is NOT guaranteed to fire on a strict 2-hour
-// clock - Chrome decides the actual interval. Treat this as a bonus, not the primary
-// mechanism. The primary mechanism is the in-page timer in index.html while the app
-// is open or backgrounded (not force-closed).
+/**
+ * Best-effort Chrome Periodic Background Sync. NOT a guaranteed 2-hour clock —
+ * Chrome decides actual timing based on site engagement. The reliable mechanism
+ * is the in-page timer in app.js while the app is open/backgrounded.
+ * This bonus path uses fixed default premiums since a service worker cannot
+ * read the page's localStorage settings.
+ */
 self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'gold-price-check') {
-    event.waitUntil(checkGoldPriceAndNotify());
-  }
+  if (event.tag === 'gold-price-check') event.waitUntil(checkGoldPriceAndNotify());
 });
-
-// Fallback for browsers without periodicsync but with one-off background sync
 self.addEventListener('sync', (event) => {
-  if (event.tag === 'gold-price-check-once') {
-    event.waitUntil(checkGoldPriceAndNotify());
-  }
+  if (event.tag === 'gold-price-check-once') event.waitUntil(checkGoldPriceAndNotify());
 });
 
 async function checkGoldPriceAndNotify() {
@@ -73,12 +64,7 @@ async function checkGoldPriceAndNotify() {
     const usd24k = usdPerOz / GRAMS_PER_OZ;
     const usd22k = usd24k * (22 / 24);
 
-    // Mirrors the default "local market premium over spot" set in index.html settings.
-    // If the user changes those sliders, this background-sync bonus path won't pick it up
-    // until the app is reopened - the primary in-page timer always uses the live setting.
-    const INR_PREMIUM = 1.14;
-    const SAR_PREMIUM = 1.04;
-
+    const INR_PREMIUM = 1.14, SAR_PREMIUM = 1.04; // defaults, see note above
     const inr24 = (usd24k * inrRate * INR_PREMIUM).toFixed(2);
     const inr22 = (usd22k * inrRate * INR_PREMIUM).toFixed(2);
     const sar24 = (usd24k * sarRate * SAR_PREMIUM).toFixed(2);
@@ -86,11 +72,7 @@ async function checkGoldPriceAndNotify() {
 
     await self.registration.showNotification('Gold Price Update', {
       body: `24K: ₹${inr24} / SAR ${sar24}   |   22K: ₹${inr22} / SAR ${sar22}  (per gram)`,
-      icon: './icon-192.png',
-      badge: './icon-192.png',
-      tag: 'gold-price',
-      renotify: true,
-      data: { inr24, inr22, sar24, sar22, timestamp: Date.now() }
+      icon: './icon-192.png', badge: './icon-192.png', tag: 'gold-price', renotify: true
     });
   } catch (err) {
     console.error('Background gold price check failed', err);
@@ -101,9 +83,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
     self.clients.matchAll({ type: 'window' }).then((clients) => {
-      for (const client of clients) {
-        if ('focus' in client) return client.focus();
-      }
+      for (const client of clients) if ('focus' in client) return client.focus();
       if (self.clients.openWindow) return self.clients.openWindow('./index.html');
     })
   );
