@@ -4,9 +4,18 @@
    ============================================================================ */
 
 const GRAMS_PER_OZ = 31.1034768;
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const $ = (id) => document.getElementById(id);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+/** Karat is numeric everywhere (spec §7.1) — one purity lookup instead of
+ *  per-karat branching scattered across price/portfolio/alert code. */
+const PURITY_FACTOR = { 18: 0.750, 21: 0.875, 22: 0.9167, 24: 0.999 };
+const KARATS = [18, 21, 22, 24];
+
+function purityRatio(karat) {
+  return PURITY_FACTOR[Number(karat)] ?? PURITY_FACTOR[22];
+}
 
 const CURRENCIES = [
   { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
@@ -40,21 +49,10 @@ function money(code, n) {
 }
 
 /* ----------------------------------------------------------------------------
-   MIGRATION — upgrades data from the pre-Phase-1 single-file version.
-   Old keys (schema v1, implicit / unversioned):
-     goldtracker_purchases : [{date, karat, grams, price, currency, jeweller}]
-     goldtracker_goal      : {name, grams}
-     goldtracker_buyThreshold : "3"
-     goldtracker_currencies, _inrPremium, _sarPremium, _otherPremium,
-     _makingCharge, _weight, _interval, _notif, _last, _log, _history — unchanged, reused as-is.
-   New keys (schema v2):
-     goldtracker_purchases_v2 : [{id, date, karat, grams, price, currency, jeweller, notes}]
-     goldtracker_goals_v2     : [{id, name, targetGrams, karatFilter, createdAt}]
-     goldtracker_alerts_v2    : [{id, type, currency, karat, direction, thresholdValue,
-                                   thresholdPct, milestonePct, goalId, enabled,
-                                   lastTriggered, triggeredMilestones}]
-     goldtracker_primaryCurrency : "INR"
-     goldtracker_schema_version  : 2
+   MIGRATION
+   v1 -> v2: purchases gain id/notes; single goal -> goals array; alerts seeded.
+   v2 -> v3: karat becomes numeric everywhere (was string '22'/'24'); karat
+             range extends to 18/21/22/24; selected-karats display setting added.
 ---------------------------------------------------------------------------- */
 
 function runMigration() {
@@ -114,6 +112,25 @@ function runMigration() {
     localStorage.setItem('goldtracker_primaryCurrency', selected[0] || 'INR');
   }
 
+  // --- v3: normalize karat to Number everywhere it's stored, add karat display selection ---
+  if (currentVersion < 3) {
+    const purchases = JSON.parse(localStorage.getItem('goldtracker_purchases_v2') || '[]')
+      .map(p => ({ ...p, karat: Number(p.karat) || 22 }));
+    localStorage.setItem('goldtracker_purchases_v2', JSON.stringify(purchases));
+
+    const goals = JSON.parse(localStorage.getItem('goldtracker_goals_v2') || '[]')
+      .map(g => ({ ...g, karatFilter: g.karatFilter === 'any' ? 'any' : Number(g.karatFilter) || 'any' }));
+    localStorage.setItem('goldtracker_goals_v2', JSON.stringify(goals));
+
+    const alerts = JSON.parse(localStorage.getItem('goldtracker_alerts_v2') || '[]')
+      .map(a => ({ ...a, karat: a.karat ? Number(a.karat) : a.karat }));
+    localStorage.setItem('goldtracker_alerts_v2', JSON.stringify(alerts));
+
+    if (!localStorage.getItem('goldtracker_karats')) {
+      localStorage.setItem('goldtracker_karats', JSON.stringify([22, 24]));
+    }
+  }
+
   localStorage.setItem('goldtracker_schema_version', String(SCHEMA_VERSION));
 }
 
@@ -146,6 +163,11 @@ const Settings = {
 function getSelectedCurrencies() {
   const saved = Settings.getJSON('currencies', ['INR', 'SAR']);
   return saved.length ? saved : ['INR'];
+}
+
+function getSelectedKarats() {
+  const saved = Settings.getJSON('karats', [22, 24]);
+  return saved.length ? saved : [22];
 }
 
 function getPrimaryCurrency() {
@@ -201,19 +223,22 @@ async function fetchGoldPrice() {
     const fxData = await fxRes.json();
 
     const usd24 = usdPerOz / GRAMS_PER_OZ;
-    const usd22 = usd24 * (22 / 24);
 
     const prices = {};
     CURRENCIES.forEach(c => {
       const rate = fxData.rates[c.code];
       if (!rate) return;
       const premium = 1 + getPremiumPctFor(c.code) / 100;
+      const spot = {}, prem = {};
+      KARATS.forEach(k => {
+        const usdK = usd24 * purityRatio(k);
+        spot[k] = usdK * rate;
+        prem[k] = usdK * rate * premium;
+      });
       prices[c.code] = {
-        rate,
-        spot24: usd24 * rate,
-        spot22: usd22 * rate,
-        prem24: usd24 * rate * premium,
-        prem22: usd22 * rate * premium
+        rate, spot, prem,
+        // flat aliases kept for the many existing 22K/24K-specific call sites
+        spot24: spot[24], spot22: spot[22], prem24: prem[24], prem22: prem[22]
       };
     });
 
@@ -236,10 +261,10 @@ async function fetchGoldPrice() {
   }
 }
 
-/** Current premium (local-market) price per gram for a given currency + karat ('22'|'24') */
+/** Current premium (local-market) price per gram for a given currency + any karat (18/21/22/24) */
 function currentPrice(currency, karat) {
   if (!lastResult || !lastResult.prices[currency]) return null;
-  return karat === '22' ? lastResult.prices[currency].prem22 : lastResult.prices[currency].prem24;
+  return lastResult.prices[currency].prem[Number(karat)] ?? null;
 }
 
 /* ----------------------------------------------------------------------------
@@ -412,7 +437,7 @@ function computeGoalProgress(goal) {
   const pct = goal.targetGrams > 0 ? Math.min(100, (owned / goal.targetGrams) * 100) : 0;
   const remaining = Math.max(0, goal.targetGrams - owned);
 
-  const karatForPrice = goal.karatFilter === 'any' ? '22' : goal.karatFilter;
+  const karatForPrice = goal.karatFilter === 'any' ? 22 : goal.karatFilter;
   const primaryCurrency = getPrimaryCurrency();
   const pricePerGram = currentPrice(primaryCurrency, karatForPrice);
   const making = 1 + getMakingChargePct() / 100;
@@ -476,12 +501,11 @@ function evaluateAlerts(snapshot) {
       const avg = rollingAverage(hist, 30);
       const p = snapshot.prices[a.currency];
       if (avg && p) {
-        const curSpot = a.karat === '22' ? p.spot22 : p.spot24;
         const usdEquivalent = snapshot.usdPerOz; // compare in USD terms, currency-agnostic
         const dropPct = ((avg - usdEquivalent) / avg) * 100;
         if (dropPct >= a.thresholdPct) {
           isTriggered = true;
-          message = `Gold is ${dropPct.toFixed(1)}% below its 30-day average. ${a.currency} ${a.karat}K ≈ ${money(a.currency, a.karat === '22' ? p.prem22 : p.prem24)}/g.`;
+          message = `Gold is ${dropPct.toFixed(1)}% below its 30-day average. ${a.currency} ${a.karat}K ≈ ${money(a.currency, p.prem[Number(a.karat)])}/g.`;
         }
       }
     }
@@ -489,7 +513,7 @@ function evaluateAlerts(snapshot) {
     if (a.type === 'price_target') {
       const p = snapshot.prices[a.currency];
       if (p) {
-        const cur = a.karat === '22' ? p.prem22 : p.prem24;
+        const cur = p.prem[Number(a.karat)];
         if (a.direction === 'above' && cur >= a.thresholdValue) isTriggered = true;
         if (a.direction === 'below' && cur <= a.thresholdValue) isTriggered = true;
         if (isTriggered) message = `${a.currency} ${a.karat}K is now ${money(a.currency, cur)}/g — your target was ${money(a.currency, a.thresholdValue)}.`;
@@ -527,6 +551,11 @@ function evaluateAlerts(snapshot) {
 
   if (changed) saveAlerts(alerts);
 
+  if (triggeredNow.length) {
+    Settings.set('alertsSeen', '0');
+    updateAlertsBadge();
+  }
+
   triggeredNow.forEach(({ message }) => {
     notify('Gold price alert', message);
   });
@@ -547,6 +576,7 @@ function renderAll() {
   renderDashboard();
   renderPriceCards();
   renderCurrencyChips();
+  renderKaratChips();
   renderPortfolio();
   renderGoals();
   renderPurchases();
@@ -622,41 +652,64 @@ function renderPriceCards() {
   const weight = getWeightGrams();
   const weightLabel = weight === 1 ? 'per gram' : (weight === 11.664 ? 'per tola' : `for ${weight}g`);
   const making = 1 + getMakingChargePct() / 100;
-  const selected = getSelectedCurrencies();
+  const selectedCurrencies = getSelectedCurrencies();
+  const selectedKarats = getSelectedKarats();
   const grid = $('priceCardsGrid');
 
-  if (!selected.length) {
-    grid.innerHTML = `<div class="card full-card"><div class="subnote">Pick at least one currency in Settings below.</div></div>`;
+  if (!selectedCurrencies.length || !selectedKarats.length) {
+    grid.innerHTML = `<div class="card full-card"><div class="subnote">Pick at least one currency and one karat in Settings below.</div></div>`;
   } else {
     let html = '';
-    selected.forEach(code => {
+    selectedCurrencies.forEach(code => {
       const p = lastResult.prices[code];
       if (!p) return;
       const meta = currencyMeta(code);
       const sym = meta.symbol;
-      html += `
-        <div class="card">
-          <div class="karat">24K GOLD</div>
-          <div class="currency-label">${code} ${weightLabel}</div>
-          <div class="amount">${sym}${fmt(p.prem24 * weight)}</div>
-          <div class="unit">spot: ${sym}${fmt(p.spot24)}/g · jeweller ≈ ${sym}${fmt(p.prem24 * weight * making)}</div>
-        </div>
-        <div class="card">
-          <div class="karat">22K GOLD</div>
-          <div class="currency-label">${code} ${weightLabel}</div>
-          <div class="amount">${sym}${fmt(p.prem22 * weight)}</div>
-          <div class="unit">spot: ${sym}${fmt(p.spot22)}/g · jeweller ≈ ${sym}${fmt(p.prem22 * weight * making)}</div>
-        </div>
-      `;
+      selectedKarats.slice().sort((a, b) => b - a).forEach(karat => {
+        const prem = p.prem[karat], spot = p.spot[karat];
+        if (prem === undefined) return;
+        html += `
+          <div class="card">
+            <div class="karat">${karat}K GOLD</div>
+            <div class="currency-label">${code} ${weightLabel}</div>
+            <div class="amount">${sym}${fmt(prem * weight)}</div>
+            <div class="unit">spot: ${sym}${fmt(spot)}/g · jeweller ≈ ${sym}${fmt(prem * weight * making)}</div>
+          </div>
+        `;
+      });
     });
     grid.innerHTML = html;
   }
 
-  const topLine = selected
+  const topLine = selectedCurrencies
     .filter(code => lastResult.prices[code])
     .map(code => { const m = currencyMeta(code); return `${m.symbol}${fmt(lastResult.prices[code].spot24)}`; })
     .join(' / ');
   $('spotTopLine').textContent = topLine ? `≈ ${topLine} per gram (24K spot)` : '--';
+}
+
+function renderKaratChips() {
+  const selected = getSelectedKarats();
+  const wrap = $('karatChips');
+  if (!wrap) return;
+  wrap.innerHTML = KARATS.map(k => `
+    <span class="currency-chip ${selected.includes(k) ? 'active' : ''}" data-karat="${k}">${k}K</span>
+  `).join('');
+  wrap.querySelectorAll('.currency-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      let sel = getSelectedKarats();
+      const k = Number(chip.dataset.karat);
+      if (sel.includes(k)) {
+        if (sel.length === 1) return;
+        sel = sel.filter(x => x !== k);
+      } else {
+        sel.push(k);
+      }
+      Settings.set('karats', sel);
+      renderKaratChips();
+      if (lastResult) renderPriceCards();
+    });
+  });
 }
 
 function renderCurrencyChips() {
@@ -685,6 +738,8 @@ function renderCurrencyChips() {
 /* ---------- PORTFOLIO ---------- */
 
 function renderPortfolio() {
+  renderAllocationBar();
+
   const groups = computePortfolio();
   const el = $('portfolioBody');
   if (!groups.length) {
@@ -708,7 +763,59 @@ function renderPortfolio() {
   }).join('');
 }
 
+/** Grams owned per karat, regardless of currency — grams are currency-independent
+ *  so this sum is always safe (unlike money totals, which are not, see computePortfolio). */
+function computeAllocationByKarat() {
+  const purchases = getPurchases();
+  const totals = {};
+  KARATS.forEach(k => { totals[k] = 0; });
+  purchases.forEach(p => {
+    const k = Number(p.karat);
+    if (totals[k] === undefined) totals[k] = 0;
+    totals[k] += parseFloat(p.grams) || 0;
+  });
+  return totals;
+}
+
+let purchaseFilterKarat = null;
+
+function renderAllocationBar() {
+  const el = $('allocationBar');
+  if (!el) return;
+  const totals = computeAllocationByKarat();
+  const grand = Object.values(totals).reduce((s, v) => s + v, 0);
+
+  if (grand === 0) {
+    el.innerHTML = `<div class="subnote">Allocation by karat appears once you've logged a purchase.</div>`;
+    return;
+  }
+
+  const colors = { 18: '#8a6f1f', 21: '#a68a2e', 22: '#c49a2f', 24: '#d4af37' };
+  const segments = KARATS.filter(k => totals[k] > 0).map(k => {
+    const pct = (totals[k] / grand) * 100;
+    return `<div class="alloc-segment" data-karat="${k}" style="width:${pct}%; background:${colors[k]};" title="${k}K: ${fmt(totals[k])}g (${pct.toFixed(0)}%)"></div>`;
+  }).join('');
+
+  const legend = KARATS.filter(k => totals[k] > 0).map(k => `
+    <span class="alloc-legend-item ${purchaseFilterKarat === k ? 'active' : ''}" data-karat="${k}">
+      <span class="alloc-dot" style="background:${colors[k]};"></span>${k}K · ${fmt(totals[k])}g
+    </span>
+  `).join('');
+
+  el.innerHTML = `<div class="alloc-bar">${segments}</div><div class="alloc-legend">${legend}</div>`;
+
+  el.querySelectorAll('[data-karat]').forEach(node => {
+    node.addEventListener('click', () => {
+      const k = Number(node.dataset.karat);
+      purchaseFilterKarat = purchaseFilterKarat === k ? null : k;
+      renderAllocationBar();
+      renderPurchases();
+    });
+  });
+}
+
 /* ---------- GOALS ---------- */
+
 
 function renderGoals() {
   const goals = getGoals();
@@ -761,15 +868,27 @@ function populatePCurrencyOptions() {
 }
 
 function renderPurchases() {
-  const purchases = getPurchases();
+  const all = getPurchases();
+  const purchases = purchaseFilterKarat === null ? all : all.filter(p => Number(p.karat) === purchaseFilterKarat);
   const tbody = $('purchaseTbody');
   const table = $('purchaseTable');
+  const filterNote = $('purchaseFilterNote');
 
-  if (!purchases.length) {
+  if (filterNote) {
+    filterNote.style.display = purchaseFilterKarat === null ? 'none' : 'flex';
+    filterNote.querySelector('span').textContent = `Showing ${purchaseFilterKarat}K only`;
+  }
+
+  if (!all.length) {
     table.style.display = 'none';
     return;
   }
   table.style.display = '';
+
+  if (!purchases.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="subnote">No ${purchaseFilterKarat}K purchases logged.</td></tr>`;
+    return;
+  }
 
   tbody.innerHTML = purchases.map(p => `
     <tr>
@@ -910,6 +1029,11 @@ function renderComparison() {
   $('cmpResult').textContent = Math.abs(diffPct) < 0.5
     ? 'Roughly the same in both markets right now'
     : (diffPct > 0 ? `Saudi is ~${diffPct.toFixed(1)}% cheaper right now` : `India is ~${Math.abs(diffPct).toFixed(1)}% cheaper right now`);
+
+  const mini = $('dashCmpMini');
+  if (mini) {
+    mini.textContent = Math.abs(diffPct) < 0.5 ? 'Same' : (diffPct > 0 ? `Saudi −${diffPct.toFixed(1)}%` : `India −${Math.abs(diffPct).toFixed(1)}%`);
+  }
 }
 
 /* ---------- RECENT CHECKS LOG ---------- */
@@ -962,6 +1086,102 @@ function updateCountdown() {
   const s = Math.floor((diff % 60000) / 1000);
   const el = $('nextCheck');
   if (el) el.textContent = `${h}h ${m}m ${s}s`;
+}
+
+/* ============================================================================
+   NAVIGATION — 4-tab shell (Home / Portfolio / Alerts / More)
+   ============================================================================ */
+
+const TABS = ['home', 'portfolio', 'alerts', 'more'];
+
+function goToTab(tab, focusForm) {
+  TABS.forEach(t => {
+    const panel = $('tab-' + t);
+    if (panel) panel.style.display = (t === tab) ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+
+  if (tab === 'alerts') {
+    Settings.set('alertsSeen', '1');
+    updateAlertsBadge();
+  }
+
+  if (focusForm) {
+    // Quick-action buttons on Home ("Add Purchase" / "Set Alert") jump straight to the form
+    setTimeout(() => {
+      if (tab === 'portfolio') $('pGrams')?.focus();
+      if (tab === 'alerts') $('alertType')?.focus();
+    }, 50);
+  }
+}
+
+function updateAlertsBadge() {
+  const badge = $('alertsBadge');
+  if (!badge) return;
+  const hasUnseen = Settings.get('alertsSeen', '1') !== '1';
+  badge.style.display = hasUnseen ? 'inline-block' : 'none';
+}
+
+/* ============================================================================
+   QUICK CALCULATOR (Home tab)
+   ============================================================================ */
+
+function wireQuickCalculator() {
+  const update = () => {
+    const grams = parseFloat($('calcGrams').value);
+    const karat = Number($('calcKarat').value);
+    const currency = getPrimaryCurrency();
+    const el = $('calcResult');
+    if (!grams || grams <= 0) {
+      el.textContent = "Enter a weight to see today's value";
+      return;
+    }
+    const price = currentPrice(currency, karat);
+    if (price === null) {
+      el.textContent = 'Price not loaded yet — check your connection.';
+      return;
+    }
+    const making = 1 + getMakingChargePct() / 100;
+    el.innerHTML = `${fmt(grams)}g of ${karat}K ≈ <strong>${money(currency, grams * price)}</strong> at spot-adjusted local price, <strong>${money(currency, grams * price * making)}</strong> incl. typical making charge.`;
+  };
+  $('calcGrams').addEventListener('input', update);
+  $('calcKarat').addEventListener('change', update);
+}
+
+/* ============================================================================
+   ALERT PRESETS (Alerts tab)
+   ============================================================================ */
+
+function applyAlertPreset(name) {
+  goToTab('alerts');
+  const alerts = getAlerts();
+  const primary = getPrimaryCurrency();
+
+  if (name === 'dip3' || name === 'dip5') {
+    alerts.push({
+      id: uid(), type: 'drop_vs_avg', currency: primary, karat: 24,
+      thresholdPct: name === 'dip3' ? 3 : 5, enabled: true, lastTriggered: null
+    });
+    saveAlerts(alerts);
+    renderAlerts();
+  } else if (name === 'milestones') {
+    const goals = getGoals();
+    if (!goals.length) {
+      alert('Add a goal first (Portfolio tab) — milestone alerts need a goal to track.');
+      return;
+    }
+    [25, 50, 75, 100].forEach(pct => {
+      alerts.push({
+        id: uid(), type: 'goal_milestone', goalId: goals[0].id, milestonePct: pct,
+        enabled: true, lastTriggered: null, triggeredMilestones: []
+      });
+    });
+    saveAlerts(alerts);
+    renderAlerts();
+  }
 }
 
 /* ============================================================================
@@ -1040,7 +1260,7 @@ function populatePrimaryCurrencyOptions() {
 function wirePurchaseForm() {
   $('addPurchaseBtn').addEventListener('click', () => {
     const date = $('pDate').value || new Date().toISOString().slice(0, 10);
-    const karat = $('pKarat').value;
+    const karat = Number($('pKarat').value);
     const grams = parseFloat($('pGrams').value);
     const price = parseFloat($('pPrice').value);
     const currency = $('pCurrency').value;
@@ -1076,7 +1296,7 @@ function wireGoalForm() {
   $('addGoalBtn').addEventListener('click', () => {
     const name = $('goalName').value.trim() || 'Gold goal';
     const targetGrams = parseFloat($('goalGrams').value);
-    const karatFilter = $('goalKarat').value;
+    const karatFilter = $('goalKarat').value === 'any' ? 'any' : Number($('goalKarat').value);
     if (!targetGrams || targetGrams <= 0) { alert('Enter a target weight in grams.'); return; }
 
     const goals = getGoals();
@@ -1114,11 +1334,11 @@ function wireAlertForm() {
 
     if (type === 'drop_vs_avg') {
       alert.currency = $('alertCurrencyThreshold').value;
-      alert.karat = $('alertKaratThreshold').value;
+      alert.karat = Number($('alertKaratThreshold').value);
       alert.thresholdPct = parseFloat($('alertThresholdPct').value) || 3;
     } else if (type === 'price_target') {
       alert.currency = $('alertCurrencyTarget').value;
-      alert.karat = $('alertKaratTarget').value;
+      alert.karat = Number($('alertKaratTarget').value);
       alert.direction = $('alertDirection').value;
       alert.thresholdValue = parseFloat($('alertThresholdValue').value);
       if (!alert.thresholdValue) { alert('Enter a target price.'); return; }
@@ -1212,6 +1432,7 @@ function loadSettingsIntoForm() {
 
   loadSettingsIntoForm();
   renderCurrencyChips();
+  renderKaratChips();
   populatePrimaryCurrencyOptions();
   populatePCurrencyOptions();
   resetPurchaseForm();
@@ -1222,6 +1443,8 @@ function loadSettingsIntoForm() {
   wireGoalForm();
   wireAlertForm();
   wireBackup();
+  wireQuickCalculator();
+  updateAlertsBadge();
 
   if (lastResult) renderAll();
 

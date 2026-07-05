@@ -1,5 +1,5 @@
 {
-  "name": "Gold Price Tracker - Portfolio & Goals",
+  "name": "Gold Tracker - Portfolio, Goals & Alerts",
   "short_name": "Gold Tracker",
   "description": "Live gold prices, portfolio tracking, goals, and alerts for INR/SAR/multi-currency gold buyers",
   "start_url": "./index.html",

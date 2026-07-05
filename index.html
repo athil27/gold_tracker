@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gold Price Tracker</title>
+<title>Gold Tracker</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#d4af37">
 <link rel="icon" href="./icon-192.png">
@@ -15,8 +15,7 @@
 <div class="warn" id="staleBanner" style="display:none;"></div>
 
 <header>
-  <h1>◆ GOLD PRICE TRACKER</h1>
-  <p>Live prices · Portfolio · Goals · Alerts</p>
+  <h1>◆ GOLD TRACKER</h1>
   <div class="status-row">
     <div class="dot" id="statusDot"></div>
     <span id="statusText">Loading...</span>
@@ -26,315 +25,426 @@
 
 <main>
 
-  <!-- ===================== DASHBOARD ===================== -->
-  <div class="section" id="dashboardSection">
-    <h2>DASHBOARD</h2>
-    <div class="dash-grid">
-      <div class="dash-card">
+  <!-- =========================================================== -->
+  <!-- HOME TAB                                                     -->
+  <!-- =========================================================== -->
+  <div class="tab-panel" id="tab-home">
+
+    <div class="section" id="dashboardSection">
+      <div class="dash-hero">
         <div class="dash-label">Portfolio value</div>
-        <div class="dash-value" id="dashPortfolioValue">--</div>
+        <div class="dash-value dash-value-lg" id="dashPortfolioValue">--</div>
         <div id="dashGainLoss" class="dash-gainloss">--</div>
       </div>
-      <div class="dash-card">
-        <div class="dash-label">Total weight owned</div>
-        <div class="dash-value" id="dashGrams">--</div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-label">24K today</div>
-        <div class="dash-value" id="dashPrice24">--</div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-label">22K today</div>
-        <div class="dash-value" id="dashPrice22">--</div>
-      </div>
-    </div>
-    <div style="margin-top:12px;">
-      <div class="dash-label" style="margin-bottom:6px;">Top goal</div>
-      <div id="dashGoalMini"></div>
-    </div>
-  </div>
-
-  <!-- ===================== LIVE PRICES ===================== -->
-  <div class="grid" id="priceCardsGrid"></div>
-
-  <div class="grid" style="margin-top:0;">
-    <div class="card full-card">
-      <div class="karat">SPOT PRICE</div>
-      <div class="currency-label">USD per troy ounce (XAU)</div>
-      <div class="amount" id="spotUsd">--</div>
-      <div class="unit" id="spotTopLine">--</div>
-    </div>
-  </div>
-
-  <button class="primary-btn" id="refreshBtn" onclick="fetchGoldPrice()">Check Price Now</button>
-
-  <!-- ===================== SETTINGS ===================== -->
-  <div class="section" style="margin-top:16px;">
-    <h2>SETTINGS</h2>
-
-    <div class="row" style="display:block;">
-      <span style="display:block; margin-bottom:8px;">Currencies to show</span>
-      <div id="currencyChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-    </div>
-
-    <div class="row">
-      <span>Primary currency (dashboard/portfolio)</span>
-      <select id="primaryCurrencySelect"></select>
-    </div>
-
-    <div class="row">
-      <span>Notifications</span>
-      <label class="switch">
-        <input type="checkbox" id="notifToggle">
-        <span class="slider"></span>
-      </label>
-    </div>
-    <div class="warn" id="permWarn" style="display:none; margin:10px 0 0;">
-      Notifications are off. Enable them above so alerts actually pop up.
-    </div>
-
-    <div class="row">
-      <span>Check interval</span>
-      <select id="intervalSelect">
-        <option value="30">Every 30 min</option>
-        <option value="60">Every 1 hour</option>
-        <option value="120" selected>Every 2 hours</option>
-        <option value="240">Every 4 hours</option>
-      </select>
-    </div>
-    <div class="row">
-      <span>Weight (price cards)</span>
-      <select id="weightSelect">
-        <option value="1">1 gram</option>
-        <option value="8">8 grams</option>
-        <option value="10" selected>10 grams</option>
-        <option value="11.664">1 tola (11.664g)</option>
-        <option value="20">20 grams</option>
-        <option value="50">50 grams</option>
-        <option value="100">100 grams</option>
-      </select>
-    </div>
-    <div class="row">
-      <span>India premium over spot (%)</span>
-      <input type="number" id="inrPremium" min="0" max="40" step="0.5" class="num-input">
-    </div>
-    <div class="row">
-      <span>Saudi premium over spot (%)</span>
-      <input type="number" id="sarPremium" min="0" max="40" step="0.5" class="num-input">
-    </div>
-    <div class="row">
-      <span>Other currencies premium (%)</span>
-      <input type="number" id="otherPremium" min="0" max="40" step="0.5" class="num-input">
-    </div>
-    <div class="row">
-      <span>Typical making charge (%)</span>
-      <input type="number" id="makingCharge" min="0" max="40" step="0.5" class="num-input">
-    </div>
-    <div class="row">
-      <span>Next check</span>
-      <span id="nextCheck" style="color:var(--muted);">--</span>
-    </div>
-  </div>
-
-  <!-- ===================== PORTFOLIO ===================== -->
-  <div class="section">
-    <h2>PORTFOLIO SUMMARY</h2>
-    <div id="portfolioBody"></div>
-    <div class="subnote" style="margin-top:10px;">Current value uses today's local-market (premium) price, not jeweller-inclusive — resale typically doesn't recover making charges, so this is a more realistic valuation.</div>
-  </div>
-
-  <!-- ===================== GOALS ===================== -->
-  <div class="section">
-    <h2>GOALS</h2>
-    <div class="form-grid">
-      <div>
-        <label>Goal name</label>
-        <input type="text" id="goalName" placeholder="e.g. Daughter's wedding set">
-      </div>
-      <div>
-        <label>Target weight (grams)</label>
-        <input type="number" id="goalGrams" placeholder="e.g. 150">
-      </div>
-      <div>
-        <label>Counts purchases of</label>
-        <select id="goalKarat">
-          <option value="any">Any karat</option>
-          <option value="22">22K only</option>
-          <option value="24">24K only</option>
-        </select>
-      </div>
-    </div>
-    <button class="btn" id="addGoalBtn" style="width:100%;">Add goal</button>
-    <div id="goalsList" style="margin-top:14px;"></div>
-  </div>
-
-  <!-- ===================== ALERTS ===================== -->
-  <div class="section">
-    <h2>ALERTS</h2>
-    <div class="row">
-      <span>Alert type</span>
-      <select id="alertType">
-        <option value="drop_vs_avg">Price drop vs 30-day average</option>
-        <option value="price_target">Price target reached</option>
-        <option value="goal_milestone">Goal milestone reached</option>
-      </select>
-    </div>
-
-    <div id="alertFieldsThreshold" class="form-grid" style="margin-top:8px;">
-      <div>
-        <label>Currency</label>
-        <select id="alertCurrencyThreshold"></select>
-      </div>
-      <div>
-        <label>Karat</label>
-        <select id="alertKaratThreshold"><option value="24">24K</option><option value="22">22K</option></select>
-      </div>
-      <div>
-        <label>Drop threshold (%)</label>
-        <input type="number" id="alertThresholdPct" value="3" min="0.5" step="0.5">
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-label">Total weight owned</div>
+          <div class="dash-value" id="dashGrams">--</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-label">24K today</div>
+          <div class="dash-value" id="dashPrice24">--</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-label">22K today</div>
+          <div class="dash-value" id="dashPrice22">--</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-label">India vs Saudi</div>
+          <div class="dash-value dash-value-sm" id="dashCmpMini">--</div>
+        </div>
       </div>
     </div>
 
-    <div id="alertFieldsTarget" class="form-grid" style="margin-top:8px; display:none;">
-      <div>
-        <label>Currency</label>
-        <select id="alertCurrencyTarget"></select>
-      </div>
-      <div>
-        <label>Karat</label>
-        <select id="alertKaratTarget"><option value="24">24K</option><option value="22">22K</option></select>
-      </div>
-      <div>
-        <label>Direction</label>
-        <select id="alertDirection"><option value="below">Falls below</option><option value="above">Rises above</option></select>
-      </div>
-      <div>
-        <label>Target price (per gram)</label>
-        <input type="number" id="alertThresholdValue" placeholder="e.g. 9000" step="0.01">
-      </div>
+    <div class="action-row">
+      <button class="primary-btn" onclick="goToTab('portfolio', true)">Add Purchase</button>
+      <button class="primary-btn secondary-action" onclick="goToTab('alerts', true)">Set Alert</button>
     </div>
 
-    <div id="alertFieldsGoal" class="form-grid" style="margin-top:8px; display:none;">
-      <div>
-        <label>Goal</label>
-        <select id="alertGoalSelect"></select>
+    <div class="section">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="dash-label">Top goal</div>
+        <a class="link-btn" onclick="goToTab('portfolio')">View all →</a>
       </div>
-      <div>
-        <label>Milestone</label>
-        <select id="alertMilestonePct">
-          <option value="25">25%</option>
-          <option value="50">50%</option>
-          <option value="75">75%</option>
-          <option value="100">100%</option>
-        </select>
-      </div>
+      <div id="dashGoalMini" style="margin-top:8px;"></div>
     </div>
 
-    <button class="btn" id="addAlertBtn" style="width:100%; margin-top:8px;">Add alert</button>
-    <div id="alertsList" style="margin-top:14px;"></div>
-  </div>
-
-  <!-- ===================== PURCHASES ===================== -->
-  <div class="section" id="purchasesSection">
-    <h2>MY PURCHASES</h2>
-    <div class="form-grid">
-      <div>
-        <label>Date</label>
-        <input type="date" id="pDate">
+    <div class="section">
+      <h2>QUICK CALCULATOR</h2>
+      <div class="form-grid">
+        <div>
+          <label>Weight (grams)</label>
+          <input type="number" id="calcGrams" placeholder="e.g. 10" step="0.01">
+        </div>
+        <div>
+          <label>Karat</label>
+          <select id="calcKarat"><option value="24">24K</option><option value="22" selected>22K</option><option value="21">21K</option><option value="18">18K</option></select>
+        </div>
       </div>
-      <div>
-        <label>Karat</label>
-        <select id="pKarat"><option value="22">22K</option><option value="24">24K</option></select>
-      </div>
-      <div>
-        <label>Weight (grams)</label>
-        <input type="number" id="pGrams" placeholder="e.g. 10" step="0.01">
-      </div>
-      <div>
-        <label>Total price paid</label>
-        <input type="number" id="pPrice" placeholder="e.g. 145000" step="0.01">
-      </div>
-      <div>
-        <label>Currency</label>
-        <select id="pCurrency"></select>
-      </div>
-      <div>
-        <label>Jeweller (optional)</label>
-        <input type="text" id="pJeweller" placeholder="e.g. Malabar Gold">
-      </div>
-    </div>
-    <div style="margin-bottom:8px;">
-      <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">Notes (optional)</label>
-      <input type="text" id="pNotes" placeholder="e.g. bridal necklace, hallmark BIS" style="width:100%; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px;">
-    </div>
-    <div style="display:flex; gap:8px;">
-      <button class="btn" id="addPurchaseBtn" style="flex:1;">Add purchase</button>
-      <button class="btn" id="cancelEditBtn" style="display:none;">Cancel</button>
+      <div class="calc-result" id="calcResult">Enter a weight to see today's value</div>
     </div>
 
-    <table class="plist" id="purchaseTable" style="display:none;">
-      <thead><tr><th>Date</th><th>Karat</th><th>Grams</th><th>Paid</th><th>Notes</th><th></th><th></th></tr></thead>
-      <tbody id="purchaseTbody"></tbody>
-    </table>
-  </div>
-
-  <!-- ===================== TREND ===================== -->
-  <div class="section">
-    <h2>PRICE TREND <span class="badge dim" id="trendDays">--</span></h2>
-    <svg id="sparkline" viewBox="0 0 300 60" style="width:100%; height:60px; margin-top:8px;"></svg>
-    <div class="subnote">History builds up as you use the app — the longer it runs, the more useful this gets.</div>
-  </div>
-
-  <!-- ===================== COMPARISON ===================== -->
-  <div class="section">
-    <h2>INDIA VS SAUDI (22K, landed in ₹ terms)</h2>
-    <div class="cmp-row"><span>India retail (22K/g)</span><span class="cmp-val" id="cmpIndia">--</span></div>
-    <div class="cmp-row"><span>Saudi retail, converted to ₹ (22K/g)</span><span class="cmp-val" id="cmpSaudi">--</span></div>
-    <div class="cmp-row"><span id="cmpResult">--</span><span></span></div>
-    <div class="subnote">Uses today's exchange rate only — doesn't account for your actual remittance rate or transfer fees.</div>
-  </div>
-
-  <!-- ===================== RECENT CHECKS ===================== -->
-  <div class="section">
-    <h2>RECENT CHECKS</h2>
-    <div id="logList"><div class="log-entry"><span>No checks yet</span></div></div>
-  </div>
-
-  <!-- ===================== REFERENCE ===================== -->
-  <div class="section">
-    <h2>REFERENCE</h2>
-    <details>
-      <summary>NRI gold duty-free allowance (India) ▾</summary>
-      <p>Under India's Baggage Rules 2026, for Indian passport holders/NRIs who've stayed abroad continuously for 1+ year, arriving with <strong>gold jewellery</strong> (not bars/coins):</p>
-      <ul>
-        <li>Male traveller: 20 grams duty-free</li>
-        <li>Female traveller: 40 grams duty-free</li>
-      </ul>
-      <p>Beyond that, and for gold bars/coins (no duty-free allowance at all), a concessional customs duty of roughly 6% applies if abroad 6+ months — up to 1kg per passenger, must be declared at the Red Channel.</p>
-      <p class="subnote">Rules change with each Union Budget — verify at cbic.gov.in before travelling with jewellery near these limits.</p>
+    <details class="section-details">
+      <summary>All prices &amp; currencies ▾</summary>
+      <div class="grid" id="priceCardsGrid" style="margin-top:12px;"></div>
+      <div class="grid" style="margin-top:0;">
+        <div class="card full-card">
+          <div class="karat">SPOT PRICE</div>
+          <div class="currency-label">USD per troy ounce (XAU)</div>
+          <div class="amount" id="spotUsd">--</div>
+          <div class="unit" id="spotTopLine">--</div>
+        </div>
+      </div>
+      <button class="btn" style="width:100%;" onclick="fetchGoldPrice()">Check Price Now</button>
     </details>
+
+    <details class="section-details">
+      <summary>India vs Saudi — full comparison ▾</summary>
+      <div class="cmp-row"><span>India retail (22K/g)</span><span class="cmp-val" id="cmpIndia">--</span></div>
+      <div class="cmp-row"><span>Saudi retail, converted to ₹ (22K/g)</span><span class="cmp-val" id="cmpSaudi">--</span></div>
+      <div class="cmp-row"><span id="cmpResult">--</span><span></span></div>
+      <div class="subnote">Uses today's exchange rate only — doesn't account for your actual remittance rate or transfer fees.</div>
+    </details>
+
+    <details class="section-details">
+      <summary>Price trend ▾</summary>
+      <h2 style="margin-top:0;">PRICE TREND <span class="badge dim" id="trendDays">--</span></h2>
+      <svg id="sparkline" viewBox="0 0 300 60" style="width:100%; height:60px; margin-top:8px;"></svg>
+      <div class="subnote">History builds up as you use the app — the longer it runs, the more useful this gets.</div>
+    </details>
+
   </div>
 
-  <!-- ===================== BACKUP ===================== -->
-  <div class="section">
-    <h2>BACKUP</h2>
-    <div class="subnote">Everything above lives only in this browser's local storage. Export it periodically so you don't lose it if you clear browser data or switch devices.</div>
-    <div class="export-row">
-      <button class="btn" id="exportBtn">Export data</button>
-      <label class="btn" style="text-align:center; cursor:pointer;">Import data<input type="file" id="importFile" accept=".json" style="display:none;"></label>
+  <!-- =========================================================== -->
+  <!-- PORTFOLIO TAB                                                -->
+  <!-- =========================================================== -->
+  <div class="tab-panel" id="tab-portfolio" style="display:none;">
+
+    <div class="section">
+      <h2>ALLOCATION BY KARAT</h2>
+      <div id="allocationBar"></div>
     </div>
-    <div class="subnote" style="margin-top:12px;">If the app looks stuck or out of date after an update, tap this — it clears the cached app shell (not your saved data above) and reloads fresh.</div>
-    <button class="btn" id="forceRefreshBtn" style="width:100%; margin-top:8px;">Force refresh app</button>
+
+    <div class="section">
+      <h2>PORTFOLIO SUMMARY</h2>
+      <div id="portfolioBody"></div>
+      <div class="subnote" style="margin-top:10px;">Current value uses today's local-market (premium) price, not jeweller-inclusive — resale typically doesn't recover making charges, so this is a more realistic valuation.</div>
+    </div>
+
+    <div class="section">
+      <h2>GOALS</h2>
+      <div class="form-grid">
+        <div>
+          <label>Goal name</label>
+          <input type="text" id="goalName" placeholder="e.g. Daughter's wedding set">
+        </div>
+        <div>
+          <label>Target weight (grams)</label>
+          <input type="number" id="goalGrams" placeholder="e.g. 150">
+        </div>
+        <div>
+          <label>Counts purchases of</label>
+          <select id="goalKarat">
+            <option value="any">Any karat</option>
+            <option value="18">18K only</option>
+            <option value="21">21K only</option>
+            <option value="22">22K only</option>
+            <option value="24">24K only</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" id="addGoalBtn" style="width:100%;">Add goal</button>
+      <div id="goalsList" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="section" id="purchasesSection">
+      <h2>MY PURCHASES</h2>
+      <div class="form-grid">
+        <div>
+          <label>Date</label>
+          <input type="date" id="pDate">
+        </div>
+        <div>
+          <label>Karat</label>
+          <select id="pKarat">
+            <option value="24">24K</option>
+            <option value="22" selected>22K</option>
+            <option value="21">21K</option>
+            <option value="18">18K</option>
+          </select>
+        </div>
+        <div>
+          <label>Weight (grams)</label>
+          <input type="number" id="pGrams" placeholder="e.g. 10" step="0.01">
+        </div>
+        <div>
+          <label>Total price paid</label>
+          <input type="number" id="pPrice" placeholder="e.g. 145000" step="0.01">
+        </div>
+        <div>
+          <label>Currency</label>
+          <select id="pCurrency"></select>
+        </div>
+        <div>
+          <label>Jeweller (optional)</label>
+          <input type="text" id="pJeweller" placeholder="e.g. Malabar Gold">
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">Notes (optional)</label>
+        <input type="text" id="pNotes" placeholder="e.g. bridal necklace, hallmark BIS" style="width:100%; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px;">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="addPurchaseBtn" style="flex:1;">Add purchase</button>
+        <button class="btn" id="cancelEditBtn" style="display:none;">Cancel</button>
+      </div>
+
+      <div id="purchaseFilterNote" class="filter-note" style="display:none;">
+        <span>Showing filtered</span>
+        <a class="link-btn" onclick="purchaseFilterKarat=null; renderAllocationBar(); renderPurchases();">Clear filter ✕</a>
+      </div>
+
+      <table class="plist" id="purchaseTable" style="display:none;">
+        <thead><tr><th>Date</th><th>Karat</th><th>Grams</th><th>Paid</th><th>Notes</th><th></th><th></th></tr></thead>
+        <tbody id="purchaseTbody"></tbody>
+      </table>
+    </div>
+
   </div>
 
-  <div class="note">
-    Data: gold-api.com (live XAU spot) and open.er-api.com (FX rates). 22K uses 91.67% purity of 24K.
-    Background checks run on an in-page timer — reliable while this tab/app is open or backgrounded normally,
-    but very aggressive OEM battery managers (some Xiaomi/Oppo/Vivo builds) can delay it unless you allow
-    unrestricted battery usage for this app/browser.
+  <!-- =========================================================== -->
+  <!-- ALERTS TAB                                                   -->
+  <!-- =========================================================== -->
+  <div class="tab-panel" id="tab-alerts" style="display:none;">
+
+    <div class="warn" id="permWarn" style="display:none;">
+      Notifications are off. Enable them in More → Settings so alerts actually pop up.
+    </div>
+
+    <div class="section">
+      <h2>PRESETS</h2>
+      <div class="preset-row">
+        <span class="currency-chip" onclick="applyAlertPreset('dip3')">Any 3%+ dip</span>
+        <span class="currency-chip" onclick="applyAlertPreset('dip5')">5%+ dip</span>
+        <span class="currency-chip" onclick="applyAlertPreset('milestones')">Goal milestones</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>ADD ALERT</h2>
+      <div class="row">
+        <span>Alert type</span>
+        <select id="alertType">
+          <option value="drop_vs_avg">Price drop vs 30-day average</option>
+          <option value="price_target">Price target reached</option>
+          <option value="goal_milestone">Goal milestone reached</option>
+        </select>
+      </div>
+
+      <div id="alertFieldsThreshold" class="form-grid" style="margin-top:8px;">
+        <div>
+          <label>Currency</label>
+          <select id="alertCurrencyThreshold"></select>
+        </div>
+        <div>
+          <label>Karat</label>
+          <select id="alertKaratThreshold">
+            <option value="24">24K</option><option value="22">22K</option>
+            <option value="21">21K</option><option value="18">18K</option>
+          </select>
+        </div>
+        <div>
+          <label>Drop threshold (%)</label>
+          <input type="number" id="alertThresholdPct" value="3" min="0.5" step="0.5">
+        </div>
+      </div>
+
+      <div id="alertFieldsTarget" class="form-grid" style="margin-top:8px; display:none;">
+        <div>
+          <label>Currency</label>
+          <select id="alertCurrencyTarget"></select>
+        </div>
+        <div>
+          <label>Karat</label>
+          <select id="alertKaratTarget">
+            <option value="24">24K</option><option value="22">22K</option>
+            <option value="21">21K</option><option value="18">18K</option>
+          </select>
+        </div>
+        <div>
+          <label>Direction</label>
+          <select id="alertDirection"><option value="below">Falls below</option><option value="above">Rises above</option></select>
+        </div>
+        <div>
+          <label>Target price (per gram)</label>
+          <input type="number" id="alertThresholdValue" placeholder="e.g. 9000" step="0.01">
+        </div>
+      </div>
+
+      <div id="alertFieldsGoal" class="form-grid" style="margin-top:8px; display:none;">
+        <div>
+          <label>Goal</label>
+          <select id="alertGoalSelect"></select>
+        </div>
+        <div>
+          <label>Milestone</label>
+          <select id="alertMilestonePct">
+            <option value="25">25%</option>
+            <option value="50">50%</option>
+            <option value="75">75%</option>
+            <option value="100">100%</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn" id="addAlertBtn" style="width:100%; margin-top:8px;">Add alert</button>
+    </div>
+
+    <div class="section">
+      <h2>YOUR ALERTS</h2>
+      <div id="alertsList"></div>
+    </div>
+
+  </div>
+
+  <!-- =========================================================== -->
+  <!-- MORE TAB                                                     -->
+  <!-- =========================================================== -->
+  <div class="tab-panel" id="tab-more" style="display:none;">
+
+    <div class="section">
+      <h2>SETTINGS</h2>
+
+      <div class="row" style="display:block;">
+        <span style="display:block; margin-bottom:8px;">Currencies to show</span>
+        <div id="currencyChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+      </div>
+
+      <div class="row" style="display:block; margin-top:10px;">
+        <span style="display:block; margin-bottom:8px;">Karats to show</span>
+        <div id="karatChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+      </div>
+
+      <div class="row">
+        <span>Primary currency (dashboard/portfolio)</span>
+        <select id="primaryCurrencySelect"></select>
+      </div>
+
+      <div class="row">
+        <span>Notifications</span>
+        <label class="switch">
+          <input type="checkbox" id="notifToggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="row">
+        <span>Check interval</span>
+        <select id="intervalSelect">
+          <option value="30">Every 30 min</option>
+          <option value="60">Every 1 hour</option>
+          <option value="120" selected>Every 2 hours</option>
+          <option value="240">Every 4 hours</option>
+        </select>
+      </div>
+      <div class="row">
+        <span>Weight (price cards)</span>
+        <select id="weightSelect">
+          <option value="1">1 gram</option>
+          <option value="8">8 grams</option>
+          <option value="10" selected>10 grams</option>
+          <option value="11.664">1 tola (11.664g)</option>
+          <option value="20">20 grams</option>
+          <option value="50">50 grams</option>
+          <option value="100">100 grams</option>
+        </select>
+      </div>
+      <div class="row">
+        <span>India premium over spot (%)</span>
+        <input type="number" id="inrPremium" min="0" max="40" step="0.5" class="num-input">
+      </div>
+      <div class="row">
+        <span>Saudi premium over spot (%)</span>
+        <input type="number" id="sarPremium" min="0" max="40" step="0.5" class="num-input">
+      </div>
+      <div class="row">
+        <span>Other currencies premium (%)</span>
+        <input type="number" id="otherPremium" min="0" max="40" step="0.5" class="num-input">
+      </div>
+      <div class="row">
+        <span>Typical making charge (%)</span>
+        <input type="number" id="makingCharge" min="0" max="40" step="0.5" class="num-input">
+      </div>
+      <div class="row">
+        <span>Next check</span>
+        <span id="nextCheck" style="color:var(--muted);">--</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>DATA</h2>
+      <div class="subnote">Everything in this app lives only in this browser's local storage. Export it periodically so you don't lose it if you clear browser data or switch devices.</div>
+      <div class="export-row">
+        <button class="btn" id="exportBtn">Export data</button>
+        <label class="btn" style="text-align:center; cursor:pointer;">Import data<input type="file" id="importFile" accept=".json" style="display:none;"></label>
+      </div>
+      <div class="subnote" style="margin-top:12px;">If the app looks stuck or out of date after an update, tap this — it clears the cached app shell (not your saved data above) and reloads fresh.</div>
+      <button class="btn" id="forceRefreshBtn" style="width:100%; margin-top:8px;">Force refresh app</button>
+    </div>
+
+    <div class="section">
+      <h2>REFERENCE</h2>
+      <details>
+        <summary>NRI gold duty-free allowance (India) ▾</summary>
+        <p>Under India's Baggage Rules 2026, for Indian passport holders/NRIs who've stayed abroad continuously for 1+ year, arriving with <strong>gold jewellery</strong> (not bars/coins):</p>
+        <ul>
+          <li>Male traveller: 20 grams duty-free</li>
+          <li>Female traveller: 40 grams duty-free</li>
+        </ul>
+        <p>Beyond that, and for gold bars/coins (no duty-free allowance at all), a concessional customs duty of roughly 6% applies if abroad 6+ months — up to 1kg per passenger, must be declared at the Red Channel.</p>
+        <p class="subnote">Rules change with each Union Budget — verify at cbic.gov.in before travelling with jewellery near these limits.</p>
+      </details>
+      <details>
+        <summary>Karat purity reference ▾</summary>
+        <p>18K = 75.0% pure gold · 21K = 87.5% · 22K = 91.67% · 24K = 99.9% (effectively pure).</p>
+      </details>
+      <details>
+        <summary>Spot vs retail vs jeweller price — what's the difference? ▾</summary>
+        <p><strong>Spot</strong> is the international bullion trading price. <strong>Local retail estimate</strong> adds your country's typical import duty/GST/dealer margin on top. <strong>Jeweller estimate</strong> adds a typical making charge on top of that — closest to what you'd actually pay in a store, though individual jewellers vary.</p>
+      </details>
+    </div>
+
+    <div class="section">
+      <h2>RECENT CHECKS</h2>
+      <div id="logList"><div class="log-entry"><span>No checks yet</span></div></div>
+    </div>
+
+    <div class="note">
+      Data: gold-api.com (live XAU spot) and open.er-api.com (FX rates).
+      Background checks run on an in-page timer — reliable while this tab/app is open or backgrounded normally,
+      but very aggressive OEM battery managers (some Xiaomi/Oppo/Vivo builds) can delay it unless you allow
+      unrestricted battery usage for this app/browser.
+      <br><br>Gold Tracker · v1.1 (Phase 1 redesign)
+    </div>
+
   </div>
 
 </main>
+
+<nav class="tab-bar">
+  <button class="tab-btn active" data-tab="home" onclick="goToTab('home')">
+    <span class="tab-icon">⌂</span><span>Home</span>
+  </button>
+  <button class="tab-btn" data-tab="portfolio" onclick="goToTab('portfolio')">
+    <span class="tab-icon">◆</span><span>Portfolio</span>
+  </button>
+  <button class="tab-btn" data-tab="alerts" onclick="goToTab('alerts')">
+    <span class="tab-icon">🔔</span><span>Alerts</span><span class="tab-badge" id="alertsBadge" style="display:none;"></span>
+  </button>
+  <button class="tab-btn" data-tab="more" onclick="goToTab('more')">
+    <span class="tab-icon">⋯</span><span>More</span>
+  </button>
+</nav>
 
 <script src="./app.js"></script>
 </body>
