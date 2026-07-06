@@ -36,18 +36,11 @@
         <div class="dash-value dash-value-lg" id="dashPortfolioValue">--</div>
         <div id="dashGainLoss" class="dash-gainloss">--</div>
       </div>
+      <div id="priceTierRow" style="margin-bottom:14px;"></div>
       <div class="dash-grid">
         <div class="dash-card">
           <div class="dash-label">Total weight owned</div>
           <div class="dash-value" id="dashGrams">--</div>
-        </div>
-        <div class="dash-card">
-          <div class="dash-label">24K today</div>
-          <div class="dash-value" id="dashPrice24">--</div>
-        </div>
-        <div class="dash-card">
-          <div class="dash-label">22K today</div>
-          <div class="dash-value" id="dashPrice22">--</div>
         </div>
         <div class="dash-card">
           <div class="dash-label">India vs Saudi</div>
@@ -132,71 +125,82 @@
     </div>
 
     <div class="section">
-      <h2>GOALS</h2>
-      <div class="form-grid">
-        <div>
-          <label>Goal name</label>
-          <input type="text" id="goalName" placeholder="e.g. Daughter's wedding set">
-        </div>
-        <div>
-          <label>Target weight (grams)</label>
-          <input type="number" id="goalGrams" placeholder="e.g. 150">
-        </div>
-        <div>
-          <label>Counts purchases of</label>
-          <select id="goalKarat">
-            <option value="any">Any karat</option>
-            <option value="18">18K only</option>
-            <option value="21">21K only</option>
-            <option value="22">22K only</option>
-            <option value="24">24K only</option>
-          </select>
-        </div>
+      <div class="section-header-row">
+        <h2>GOALS</h2>
+        <button class="chip-toggle" id="toggleGoalForm">+ Add</button>
       </div>
-      <button class="btn" id="addGoalBtn" style="width:100%;">Add goal</button>
+      <div id="goalFormWrap">
+        <div class="form-grid">
+          <div>
+            <label>Goal name</label>
+            <input type="text" id="goalName" placeholder="e.g. Daughter's wedding set">
+          </div>
+          <div>
+            <label>Target weight (grams)</label>
+            <input type="number" id="goalGrams" placeholder="e.g. 150">
+          </div>
+          <div>
+            <label>Counts purchases of</label>
+            <select id="goalKarat">
+              <option value="any">Any karat</option>
+              <option value="18">18K only</option>
+              <option value="21">21K only</option>
+              <option value="22">22K only</option>
+              <option value="24">24K only</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn" id="addGoalBtn" style="width:100%;">Add goal</button>
+      </div>
       <div id="goalsList" style="margin-top:14px;"></div>
     </div>
 
     <div class="section" id="purchasesSection">
-      <h2>MY PURCHASES</h2>
-      <div class="form-grid">
-        <div>
-          <label>Date</label>
-          <input type="date" id="pDate">
-        </div>
-        <div>
-          <label>Karat</label>
-          <select id="pKarat">
-            <option value="24">24K</option>
-            <option value="22" selected>22K</option>
-            <option value="21">21K</option>
-            <option value="18">18K</option>
-          </select>
-        </div>
-        <div>
-          <label>Weight (grams)</label>
-          <input type="number" id="pGrams" placeholder="e.g. 10" step="0.01">
-        </div>
-        <div>
-          <label>Total price paid</label>
-          <input type="number" id="pPrice" placeholder="e.g. 145000" step="0.01">
-        </div>
-        <div>
-          <label>Currency</label>
-          <select id="pCurrency"></select>
-        </div>
-        <div>
-          <label>Jeweller (optional)</label>
-          <input type="text" id="pJeweller" placeholder="e.g. Malabar Gold">
-        </div>
+      <div class="section-header-row">
+        <h2>MY PURCHASES</h2>
+        <button class="chip-toggle" id="togglePurchaseForm">+ Add</button>
       </div>
-      <div style="margin-bottom:8px;">
-        <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">Notes (optional)</label>
-        <input type="text" id="pNotes" placeholder="e.g. bridal necklace, hallmark BIS" style="width:100%; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px;">
-      </div>
-      <div style="display:flex; gap:8px;">
-        <button class="btn" id="addPurchaseBtn" style="flex:1;">Add purchase</button>
-        <button class="btn" id="cancelEditBtn" style="display:none;">Cancel</button>
+
+      <div id="purchaseFormWrap">
+        <div class="form-grid">
+          <div>
+            <label>Date</label>
+            <input type="date" id="pDate">
+          </div>
+          <div>
+            <label>Karat</label>
+            <select id="pKarat">
+              <option value="24">24K</option>
+              <option value="22" selected>22K</option>
+              <option value="21">21K</option>
+              <option value="18">18K</option>
+            </select>
+          </div>
+          <div>
+            <label>Weight (grams)</label>
+            <input type="number" id="pGrams" placeholder="e.g. 10" step="0.01">
+          </div>
+          <div>
+            <label>Total price paid</label>
+            <input type="number" id="pPrice" placeholder="e.g. 145000" step="0.01">
+          </div>
+          <div>
+            <label>Currency</label>
+            <select id="pCurrency"></select>
+          </div>
+          <div>
+            <label>Jeweller (optional)</label>
+            <input type="text" id="pJeweller" placeholder="e.g. Malabar Gold">
+          </div>
+        </div>
+        <div style="margin-bottom:8px;">
+          <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">Notes (optional)</label>
+          <input type="text" id="pNotes" placeholder="e.g. bridal necklace, hallmark BIS" style="width:100%; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px;">
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="addPurchaseBtn" style="flex:1;">Add purchase</button>
+          <button class="btn" id="cancelEditBtn" style="display:none;">Cancel</button>
+        </div>
       </div>
 
       <div id="purchaseFilterNote" class="filter-note" style="display:none;">
@@ -222,6 +226,11 @@
     </div>
 
     <div class="section">
+      <h2>NOTIFICATION HEALTH</h2>
+      <div id="notifHealthCard"></div>
+    </div>
+
+    <div class="section">
       <h2>PRESETS</h2>
       <div class="preset-row">
         <span class="currency-chip" onclick="applyAlertPreset('dip3')">Any 3%+ dip</span>
@@ -231,78 +240,84 @@
     </div>
 
     <div class="section">
-      <h2>ADD ALERT</h2>
-      <div class="row">
-        <span>Alert type</span>
-        <select id="alertType">
-          <option value="drop_vs_avg">Price drop vs 30-day average</option>
-          <option value="price_target">Price target reached</option>
-          <option value="goal_milestone">Goal milestone reached</option>
-        </select>
-      </div>
-
-      <div id="alertFieldsThreshold" class="form-grid" style="margin-top:8px;">
-        <div>
-          <label>Currency</label>
-          <select id="alertCurrencyThreshold"></select>
-        </div>
-        <div>
-          <label>Karat</label>
-          <select id="alertKaratThreshold">
-            <option value="24">24K</option><option value="22">22K</option>
-            <option value="21">21K</option><option value="18">18K</option>
-          </select>
-        </div>
-        <div>
-          <label>Drop threshold (%)</label>
-          <input type="number" id="alertThresholdPct" value="3" min="0.5" step="0.5">
-        </div>
-      </div>
-
-      <div id="alertFieldsTarget" class="form-grid" style="margin-top:8px; display:none;">
-        <div>
-          <label>Currency</label>
-          <select id="alertCurrencyTarget"></select>
-        </div>
-        <div>
-          <label>Karat</label>
-          <select id="alertKaratTarget">
-            <option value="24">24K</option><option value="22">22K</option>
-            <option value="21">21K</option><option value="18">18K</option>
-          </select>
-        </div>
-        <div>
-          <label>Direction</label>
-          <select id="alertDirection"><option value="below">Falls below</option><option value="above">Rises above</option></select>
-        </div>
-        <div>
-          <label>Target price (per gram)</label>
-          <input type="number" id="alertThresholdValue" placeholder="e.g. 9000" step="0.01">
-        </div>
-      </div>
-
-      <div id="alertFieldsGoal" class="form-grid" style="margin-top:8px; display:none;">
-        <div>
-          <label>Goal</label>
-          <select id="alertGoalSelect"></select>
-        </div>
-        <div>
-          <label>Milestone</label>
-          <select id="alertMilestonePct">
-            <option value="25">25%</option>
-            <option value="50">50%</option>
-            <option value="75">75%</option>
-            <option value="100">100%</option>
-          </select>
-        </div>
-      </div>
-
-      <button class="btn" id="addAlertBtn" style="width:100%; margin-top:8px;">Add alert</button>
+      <h2>YOUR ALERTS</h2>
+      <div id="alertsList"></div>
     </div>
 
     <div class="section">
-      <h2>YOUR ALERTS</h2>
-      <div id="alertsList"></div>
+      <div class="section-header-row">
+        <h2 style="margin:0;">CUSTOM ALERT</h2>
+        <button class="chip-toggle" id="toggleCustomAlert">+ Custom alert</button>
+      </div>
+
+      <div id="customAlertWrap" style="margin-top:10px;">
+        <div class="row">
+          <span>Alert type</span>
+          <select id="alertType">
+            <option value="drop_vs_avg">Price drop vs 30-day average</option>
+            <option value="price_target">Price target reached</option>
+            <option value="goal_milestone">Goal milestone reached</option>
+          </select>
+        </div>
+
+        <div id="alertFieldsThreshold" class="form-grid" style="margin-top:8px;">
+          <div>
+            <label>Currency</label>
+            <select id="alertCurrencyThreshold"></select>
+          </div>
+          <div>
+            <label>Karat</label>
+            <select id="alertKaratThreshold">
+              <option value="24">24K</option><option value="22">22K</option>
+              <option value="21">21K</option><option value="18">18K</option>
+            </select>
+          </div>
+          <div>
+            <label>Drop threshold (%)</label>
+            <input type="number" id="alertThresholdPct" value="3" min="0.5" step="0.5">
+          </div>
+        </div>
+
+        <div id="alertFieldsTarget" class="form-grid" style="margin-top:8px; display:none;">
+          <div>
+            <label>Currency</label>
+            <select id="alertCurrencyTarget"></select>
+          </div>
+          <div>
+            <label>Karat</label>
+            <select id="alertKaratTarget">
+              <option value="24">24K</option><option value="22">22K</option>
+              <option value="21">21K</option><option value="18">18K</option>
+            </select>
+          </div>
+          <div>
+            <label>Direction</label>
+            <select id="alertDirection"><option value="below">Falls below</option><option value="above">Rises above</option></select>
+          </div>
+          <div>
+            <label>Target price (per gram)</label>
+            <input type="number" id="alertThresholdValue" placeholder="e.g. 9000" step="0.01">
+          </div>
+        </div>
+
+        <div id="alertFieldsGoal" class="form-grid" style="margin-top:8px; display:none;">
+          <div>
+            <label>Goal</label>
+            <select id="alertGoalSelect"></select>
+          </div>
+          <div>
+            <label>Milestone</label>
+            <select id="alertMilestonePct">
+              <option value="25">25%</option>
+              <option value="50">50%</option>
+              <option value="75">75%</option>
+              <option value="100">100%</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn" id="addAlertBtn" style="width:100%; margin-top:8px;">Add alert</button>
+      </div>
     </div>
 
   </div>

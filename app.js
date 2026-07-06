@@ -17,6 +17,25 @@ function purityRatio(karat) {
   return PURITY_FACTOR[Number(karat)] ?? PURITY_FACTOR[22];
 }
 
+/* ----------------------------------------------------------------------------
+   STORE — minimal pub/sub so a data mutation (add/edit/delete purchase, goal,
+   or alert) notifies every dependent render function once, in one place,
+   instead of each mutation site manually remembering which renders to call.
+   First application of the Repository/Store layering from the redesign spec.
+---------------------------------------------------------------------------- */
+
+const Store = (() => {
+  const listeners = {};
+  return {
+    on(event, fn) {
+      (listeners[event] || (listeners[event] = [])).push(fn);
+    },
+    emit(event) {
+      (listeners[event] || []).forEach(fn => fn());
+    }
+  };
+})();
+
 const CURRENCIES = [
   { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
   { code: 'SAR', symbol: 'SAR ', name: 'Saudi Riyal' },
@@ -352,6 +371,7 @@ function getPurchases() {
 
 function savePurchases(list) {
   Settings.set('purchases_v2', list);
+  Store.emit('purchases:changed');
 }
 
 /**
@@ -410,6 +430,7 @@ function getGoals() {
 
 function saveGoals(list) {
   Settings.set('goals_v2', list);
+  Store.emit('goals:changed');
 }
 
 function gramsOwnedFor(karatFilter) {
@@ -469,6 +490,7 @@ function getAlerts() {
 
 function saveAlerts(list) {
   Settings.set('alerts_v2', list);
+  Store.emit('alerts:changed');
 }
 
 function alertLabel(a) {
@@ -581,6 +603,7 @@ function renderAll() {
   renderGoals();
   renderPurchases();
   renderAlerts();
+  renderNotificationHealth();
   renderTrend(Settings.getJSON('history', []));
   renderComparison();
   renderLog();
@@ -593,19 +616,15 @@ function renderDashboard() {
   const primary = getPrimaryCurrency();
 
   if (!lastResult) {
-    $('dashPrice24').textContent = '--';
-    $('dashPrice22').textContent = '--';
     $('dashPortfolioValue').textContent = '--';
     $('dashGainLoss').textContent = '--';
     $('dashGrams').textContent = '--';
+    renderPriceTierRow(primary, null);
     return;
   }
 
   const p = lastResult.prices[primary];
-  if (p) {
-    $('dashPrice24').textContent = money(primary, p.prem24);
-    $('dashPrice22').textContent = money(primary, p.prem22);
-  }
+  renderPriceTierRow(primary, p);
 
   const headline = computePortfolioHeadline(primary);
   $('dashGrams').textContent = fmt(totalGramsOwned()) + ' g';
@@ -641,6 +660,37 @@ function renderDashboard() {
       <div class="progress-wrap"><div class="progress-bar" style="width:${top.progress.pct}%;"></div></div>
     `;
   }
+}
+
+/** Home's structural spot/retail/jeweller distinction (Increment 2 trust fix) —
+ *  a persistent labeled row instead of requiring the user to read a sentence
+ *  to understand which number means what. */
+function renderPriceTierRow(currency, p) {
+  const el = $('priceTierRow');
+  if (!el) return;
+  if (!p) {
+    el.innerHTML = `<div class="subnote">Prices load in a moment...</div>`;
+    return;
+  }
+  const making = 1 + getMakingChargePct() / 100;
+  const row = (karat) => {
+    const spot = p.spot[karat], retail = p.prem[karat], jeweller = retail * making;
+    return `
+      <div class="tier-row">
+        <span class="tier-karat">${karat}K</span>
+        <span>${money(currency, spot)}</span>
+        <span>${money(currency, retail)}</span>
+        <span>${money(currency, jeweller)}</span>
+      </div>
+    `;
+  };
+  el.innerHTML = `
+    <div class="tier-row tier-header">
+      <span></span><span>Spot</span><span>Retail</span><span>Jeweller</span>
+    </div>
+    ${row(24)}
+    ${row(22)}
+  `;
 }
 
 /* ---------- PRICE CARDS (multi-currency grid) ---------- */
@@ -850,10 +900,7 @@ function renderGoals() {
   el.querySelectorAll('.del').forEach(btn => {
     btn.addEventListener('click', () => {
       const remaining = getGoals().filter(g => g.id !== btn.dataset.id);
-      saveGoals(remaining);
-      renderGoals();
-      renderDashboard();
-      populateGoalAlertDropdown();
+      saveGoals(remaining); // emits 'goals:changed' -> renderGoals, renderDashboard, populateGoalAlertDropdown
     });
   });
 }
@@ -905,11 +952,7 @@ function renderPurchases() {
   tbody.querySelectorAll('.del').forEach(td => {
     td.addEventListener('click', () => {
       const remaining = getPurchases().filter(p => p.id !== td.dataset.id);
-      savePurchases(remaining);
-      renderPurchases();
-      renderPortfolio();
-      renderGoals();
-      renderDashboard();
+      savePurchases(remaining); // emits 'purchases:changed' -> renderPurchases, renderPortfolio, renderGoals, renderDashboard, renderAllocationBar
     });
   });
 
@@ -927,6 +970,7 @@ function renderPurchases() {
       $('pNotes').value = p.notes || '';
       $('addPurchaseBtn').textContent = 'Save changes';
       $('cancelEditBtn').style.display = 'inline-block';
+      openPurchaseForm();
       window.scrollTo({ top: $('purchasesSection').offsetTop - 10, behavior: 'smooth' });
     });
   });
@@ -944,6 +988,61 @@ function resetPurchaseForm() {
   $('cancelEditBtn').style.display = 'none';
 }
 
+/* ---------- COLLAPSIBLE FORMS (Increment 2 — density fix) ----------
+   Purchase form, goal form, and the custom alert builder are all fully
+   functional forms that already existed in Increment 1 — this only changes
+   their default visibility so the summary/list is the scan surface, and the
+   form is an action, not a permanent fixture. */
+
+function openPurchaseForm() {
+  $('purchaseFormWrap').style.display = '';
+  $('togglePurchaseForm').textContent = '− Close';
+}
+function closePurchaseForm() {
+  $('purchaseFormWrap').style.display = 'none';
+  $('togglePurchaseForm').textContent = '+ Add';
+}
+function togglePurchaseForm() {
+  const isOpen = $('purchaseFormWrap').style.display !== 'none';
+  if (isOpen) { resetPurchaseForm(); closePurchaseForm(); } else { openPurchaseForm(); }
+}
+
+function openGoalForm() {
+  $('goalFormWrap').style.display = '';
+  $('toggleGoalForm').textContent = '− Close';
+}
+function closeGoalForm() {
+  $('goalFormWrap').style.display = 'none';
+  $('toggleGoalForm').textContent = '+ Add';
+}
+function toggleGoalForm() {
+  const isOpen = $('goalFormWrap').style.display !== 'none';
+  isOpen ? closeGoalForm() : openGoalForm();
+}
+
+function openCustomAlertForm() {
+  $('customAlertWrap').style.display = '';
+  $('toggleCustomAlert').textContent = '− Close custom alert';
+}
+function closeCustomAlertForm() {
+  $('customAlertWrap').style.display = 'none';
+  $('toggleCustomAlert').textContent = '+ Custom alert';
+}
+function toggleCustomAlertForm() {
+  const isOpen = $('customAlertWrap').style.display !== 'none';
+  isOpen ? closeCustomAlertForm() : openCustomAlertForm();
+}
+
+function wireCollapsibleForms() {
+  $('togglePurchaseForm').addEventListener('click', togglePurchaseForm);
+  $('toggleGoalForm').addEventListener('click', toggleGoalForm);
+  $('toggleCustomAlert').addEventListener('click', toggleCustomAlertForm);
+  // Start closed — the list/summary is the default view, the form is an action.
+  closePurchaseForm();
+  closeGoalForm();
+  closeCustomAlertForm();
+}
+
 /* ---------- ALERTS ---------- */
 
 function populateGoalAlertDropdown() {
@@ -952,6 +1051,30 @@ function populateGoalAlertDropdown() {
   const goals = getGoals();
   sel.innerHTML = goals.map(g => `<option value="${g.id}">${g.name}</option>`).join('')
     || `<option value="">No goals yet</option>`;
+}
+
+/** Surfaces the same "will I actually get notified" facts that previously only
+ *  lived in a footer disclaimer — right where the trust question actually
+ *  arises (the Alerts tab), not three taps away in More. No new data: reuses
+ *  Notification.permission, lastResult.timestamp, and a static caveat line. */
+function renderNotificationHealth() {
+  const el = $('notifHealthCard');
+  if (!el) return;
+
+  const notifOn = Settings.get('notif', '0') === '1';
+  const permGranted = ('Notification' in window) && Notification.permission === 'granted';
+  const statusText = notifOn && permGranted ? 'On' : (notifOn && !permGranted ? 'Blocked at browser level' : 'Off');
+  const statusClass = notifOn && permGranted ? 'positive' : (notifOn ? 'negative' : '');
+
+  const mins = minutesSinceLastUpdate();
+  const lastCheckText = mins === null ? 'Never checked yet'
+    : (mins < 1 ? 'Just now' : mins < 60 ? `${Math.round(mins)}m ago` : `${Math.round(mins / 60)}h ago`);
+
+  el.innerHTML = `
+    <div class="cmp-row"><span>Notifications</span><span class="cmp-val ${statusClass}">${statusText}</span></div>
+    <div class="cmp-row"><span>Last check</span><span class="cmp-val">${lastCheckText}</span></div>
+    <div class="subnote" style="margin-top:8px;">Alerts fire while this app is open or recently backgrounded — same as any browser tab, not a guaranteed push. See More → Settings for details.</div>
+  `;
 }
 
 function renderAlerts() {
@@ -983,8 +1106,7 @@ function renderAlerts() {
   });
   el.querySelectorAll('.del').forEach(btn => {
     btn.addEventListener('click', () => {
-      saveAlerts(getAlerts().filter(a => a.id !== btn.dataset.id));
-      renderAlerts();
+      saveAlerts(getAlerts().filter(a => a.id !== btn.dataset.id)); // emits 'alerts:changed' -> renderAlerts
     });
   });
 }
@@ -1165,8 +1287,7 @@ function applyAlertPreset(name) {
       id: uid(), type: 'drop_vs_avg', currency: primary, karat: 24,
       thresholdPct: name === 'dip3' ? 3 : 5, enabled: true, lastTriggered: null
     });
-    saveAlerts(alerts);
-    renderAlerts();
+    saveAlerts(alerts); // emits 'alerts:changed' -> renderAlerts
   } else if (name === 'milestones') {
     const goals = getGoals();
     if (!goals.length) {
@@ -1179,8 +1300,7 @@ function applyAlertPreset(name) {
         enabled: true, lastTriggered: null, triggeredMilestones: []
       });
     });
-    saveAlerts(alerts);
-    renderAlerts();
+    saveAlerts(alerts); // emits 'alerts:changed' -> renderAlerts
   }
 }
 
@@ -1246,6 +1366,7 @@ function wireSettingsForm() {
       $('permWarn').style.display = 'none';
     }
     Settings.set('notif', e.target.checked ? '1' : '0');
+    renderNotificationHealth();
   });
 }
 
@@ -1279,16 +1400,14 @@ function wirePurchaseForm() {
     } else {
       purchases.push({ id: uid(), date, karat, grams, price, currency, jeweller, notes });
     }
-    savePurchases(purchases);
+    savePurchases(purchases); // emits 'purchases:changed' -> renderPurchases, renderPortfolio, renderGoals, renderDashboard, renderAllocationBar
     resetPurchaseForm();
-    renderPurchases();
-    renderPortfolio();
-    renderGoals();
-    renderDashboard();
+    closePurchaseForm();
   });
 
   $('cancelEditBtn').addEventListener('click', () => {
     resetPurchaseForm();
+    closePurchaseForm();
   });
 }
 
@@ -1301,12 +1420,10 @@ function wireGoalForm() {
 
     const goals = getGoals();
     goals.push({ id: uid(), name, targetGrams, karatFilter, createdAt: Date.now() });
-    saveGoals(goals);
+    saveGoals(goals); // emits 'goals:changed' -> renderGoals, renderDashboard, populateGoalAlertDropdown
 
     $('goalName').value = ''; $('goalGrams').value = '';
-    renderGoals();
-    renderDashboard();
-    populateGoalAlertDropdown();
+    closeGoalForm();
   });
 }
 
@@ -1350,8 +1467,8 @@ function wireAlertForm() {
     }
 
     alerts.push(alert);
-    saveAlerts(alerts);
-    renderAlerts();
+    saveAlerts(alerts); // emits 'alerts:changed' -> renderAlerts
+    closeCustomAlertForm();
   });
 }
 
@@ -1438,12 +1555,26 @@ function loadSettingsIntoForm() {
   resetPurchaseForm();
   populateGoalAlertDropdown();
 
+  // Store subscriptions — single canonical place that decides what re-renders
+  // when purchases/goals/alerts change, instead of each mutation site
+  // remembering its own list of render calls.
+  Store.on('purchases:changed', () => {
+    renderPurchases(); renderPortfolio(); renderAllocationBar(); renderGoals(); renderDashboard();
+  });
+  Store.on('goals:changed', () => {
+    renderGoals(); renderDashboard(); populateGoalAlertDropdown();
+  });
+  Store.on('alerts:changed', () => {
+    renderAlerts();
+  });
+
   wireSettingsForm();
   wirePurchaseForm();
   wireGoalForm();
   wireAlertForm();
   wireBackup();
   wireQuickCalculator();
+  wireCollapsibleForms();
   updateAlertsBadge();
 
   if (lastResult) renderAll();

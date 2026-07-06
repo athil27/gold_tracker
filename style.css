@@ -202,3 +202,20 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
 .preset-row{display:flex; flex-wrap:wrap; gap:8px;}
 .preset-row .currency-chip{cursor:pointer;}
 
+/* ---------- collapsible section headers (Increment 2 — density fix) ---------- */
+.section-header-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+.section-header-row h2{margin:0;}
+.chip-toggle{
+  background:#111; border:1px solid var(--gold-dim); color:var(--gold); font-size:12px;
+  font-weight:700; padding:6px 14px; border-radius:20px; cursor:pointer;
+}
+.chip-toggle:active{opacity:0.8;}
+
+/* ---------- price tier row (Home — spot/retail/jeweller distinction) ---------- */
+.tier-row{
+  display:grid; grid-template-columns:36px 1fr 1fr 1fr; gap:4px; font-size:12px;
+  padding:6px 0; align-items:center; font-variant-numeric:tabular-nums;
+}
+.tier-header{color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); padding-bottom:8px;}
+.tier-karat{color:var(--gold); font-weight:700; font-size:12px;}
+
