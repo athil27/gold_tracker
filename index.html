@@ -30,11 +30,22 @@
   <!-- =========================================================== -->
   <div class="tab-panel" id="tab-home">
 
+    <div class="buy-signal-card" id="buySignalCard" style="display:none;">
+      <div class="buy-signal-label" id="buySignalLabel">--</div>
+      <div class="buy-signal-reason" id="buySignalReason"></div>
+    </div>
+
     <div class="section" id="dashboardSection">
       <div class="dash-hero">
         <div class="dash-label">Portfolio value</div>
-        <div class="dash-value dash-value-lg" id="dashPortfolioValue">--</div>
-        <div id="dashGainLoss" class="dash-gainloss">--</div>
+        <div id="dashValueWrap">
+          <div class="dash-value dash-value-lg" id="dashPortfolioValue">--</div>
+          <div id="dashGainLoss" class="dash-gainloss">--</div>
+        </div>
+        <div class="empty-state empty-state-inline" id="dashEmptyState" style="display:none;">
+          <div class="empty-state-msg">No purchases yet — add your first one to see your portfolio value.</div>
+          <button class="btn primary-btn empty-state-cta" id="dashEmptyCta">+ Add your first purchase</button>
+        </div>
       </div>
       <div id="priceTierRow" style="margin-bottom:14px;"></div>
       <div class="dash-grid">
@@ -50,7 +61,7 @@
     </div>
 
     <div class="action-row">
-      <button class="primary-btn" onclick="goToTab('portfolio', true)">Add Purchase</button>
+      <button class="primary-btn" onclick="openAddPurchaseSheet()">Add Purchase</button>
       <button class="primary-btn secondary-action" onclick="goToTab('alerts', true)">Set Alert</button>
     </div>
 
@@ -91,13 +102,12 @@
       <button class="btn" style="width:100%;" onclick="fetchGoldPrice()">Check Price Now</button>
     </details>
 
-    <details class="section-details">
-      <summary>India vs Saudi — full comparison ▾</summary>
-      <div class="cmp-row"><span>India retail (22K/g)</span><span class="cmp-val" id="cmpIndia">--</span></div>
-      <div class="cmp-row"><span>Saudi retail, converted to ₹ (22K/g)</span><span class="cmp-val" id="cmpSaudi">--</span></div>
-      <div class="cmp-row"><span id="cmpResult">--</span><span></span></div>
-      <div class="subnote">Uses today's exchange rate only — doesn't account for your actual remittance rate or transfer fees.</div>
-    </details>
+    <div class="section cmp-teaser" id="cmpTeaserSection">
+      <div class="row" style="border-bottom:none; padding:2px 0;">
+        <span id="cmpTeaserText" style="font-size:13px;">Loading India vs Saudi comparison...</span>
+        <a class="link-btn" onclick="goToTab('portfolio')">Full detail →</a>
+      </div>
+    </div>
 
     <details class="section-details">
       <summary>Price trend ▾</summary>
@@ -122,6 +132,14 @@
       <h2>PORTFOLIO SUMMARY</h2>
       <div id="portfolioBody"></div>
       <div class="subnote" style="margin-top:10px;">Current value uses today's local-market (premium) price, not jeweller-inclusive — resale typically doesn't recover making charges, so this is a more realistic valuation.</div>
+    </div>
+
+    <div class="section">
+      <h2>INDIA VS SAUDI — FULL COMPARISON</h2>
+      <div class="cmp-row"><span>India retail (22K/g)</span><span class="cmp-val" id="cmpIndia">--</span></div>
+      <div class="cmp-row"><span>Saudi retail, converted to ₹ (22K/g)</span><span class="cmp-val" id="cmpSaudi">--</span></div>
+      <div class="cmp-row"><span id="cmpResult">--</span><span></span></div>
+      <div class="subnote">Uses today's exchange rate only — doesn't account for your actual remittance rate or transfer fees.</div>
     </div>
 
     <div class="section">
@@ -161,46 +179,10 @@
         <button class="chip-toggle" id="togglePurchaseForm">+ Add</button>
       </div>
 
-      <div id="purchaseFormWrap">
-        <div class="form-grid">
-          <div>
-            <label>Date</label>
-            <input type="date" id="pDate">
-          </div>
-          <div>
-            <label>Karat</label>
-            <select id="pKarat">
-              <option value="24">24K</option>
-              <option value="22" selected>22K</option>
-              <option value="21">21K</option>
-              <option value="18">18K</option>
-            </select>
-          </div>
-          <div>
-            <label>Weight (grams)</label>
-            <input type="number" id="pGrams" placeholder="e.g. 10" step="0.01">
-          </div>
-          <div>
-            <label>Total price paid</label>
-            <input type="number" id="pPrice" placeholder="e.g. 145000" step="0.01">
-          </div>
-          <div>
-            <label>Currency</label>
-            <select id="pCurrency"></select>
-          </div>
-          <div>
-            <label>Jeweller (optional)</label>
-            <input type="text" id="pJeweller" placeholder="e.g. Malabar Gold">
-          </div>
-        </div>
-        <div style="margin-bottom:8px;">
-          <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">Notes (optional)</label>
-          <input type="text" id="pNotes" placeholder="e.g. bridal necklace, hallmark BIS" style="width:100%; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px;">
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn" id="addPurchaseBtn" style="flex:1;">Add purchase</button>
-          <button class="btn" id="cancelEditBtn" style="display:none;">Cancel</button>
-        </div>
+      <div id="purchasesEmptyState" class="empty-state" style="display:none;">
+        <div class="empty-state-icon">◆</div>
+        <div class="empty-state-msg">No purchases yet — add your first one to start tracking your portfolio.</div>
+        <button class="btn primary-btn empty-state-cta" id="purchasesEmptyCta">+ Add your first purchase</button>
       </div>
 
       <div id="purchaseFilterNote" class="filter-note" style="display:none;">
@@ -330,70 +312,80 @@
     <div class="section">
       <h2>SETTINGS</h2>
 
-      <div class="row" style="display:block;">
-        <span style="display:block; margin-bottom:8px;">Currencies to show</span>
-        <div id="currencyChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-      </div>
+      <details class="settings-group" open>
+        <summary>Display ▾</summary>
+        <div class="row" style="display:block;">
+          <span style="display:block; margin-bottom:8px;">Currencies to show</span>
+          <div id="currencyChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
 
-      <div class="row" style="display:block; margin-top:10px;">
-        <span style="display:block; margin-bottom:8px;">Karats to show</span>
-        <div id="karatChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
-      </div>
+        <div class="row" style="display:block; margin-top:10px;">
+          <span style="display:block; margin-bottom:8px;">Karats to show</span>
+          <div id="karatChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
 
-      <div class="row">
-        <span>Primary currency (dashboard/portfolio)</span>
-        <select id="primaryCurrencySelect"></select>
-      </div>
+        <div class="row">
+          <span>Primary currency (dashboard/portfolio)</span>
+          <select id="primaryCurrencySelect"></select>
+        </div>
+      </details>
 
-      <div class="row">
-        <span>Notifications</span>
-        <label class="switch">
-          <input type="checkbox" id="notifToggle">
-          <span class="slider"></span>
-        </label>
-      </div>
+      <details class="settings-group">
+        <summary>Notifications ▾</summary>
+        <div class="row">
+          <span>Notifications</span>
+          <label class="switch">
+            <input type="checkbox" id="notifToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
 
-      <div class="row">
-        <span>Check interval</span>
-        <select id="intervalSelect">
-          <option value="30">Every 30 min</option>
-          <option value="60">Every 1 hour</option>
-          <option value="120" selected>Every 2 hours</option>
-          <option value="240">Every 4 hours</option>
-        </select>
-      </div>
-      <div class="row">
-        <span>Weight (price cards)</span>
-        <select id="weightSelect">
-          <option value="1">1 gram</option>
-          <option value="8">8 grams</option>
-          <option value="10" selected>10 grams</option>
-          <option value="11.664">1 tola (11.664g)</option>
-          <option value="20">20 grams</option>
-          <option value="50">50 grams</option>
-          <option value="100">100 grams</option>
-        </select>
-      </div>
-      <div class="row">
-        <span>India premium over spot (%)</span>
-        <input type="number" id="inrPremium" min="0" max="40" step="0.5" class="num-input">
-      </div>
-      <div class="row">
-        <span>Saudi premium over spot (%)</span>
-        <input type="number" id="sarPremium" min="0" max="40" step="0.5" class="num-input">
-      </div>
-      <div class="row">
-        <span>Other currencies premium (%)</span>
-        <input type="number" id="otherPremium" min="0" max="40" step="0.5" class="num-input">
-      </div>
-      <div class="row">
-        <span>Typical making charge (%)</span>
-        <input type="number" id="makingCharge" min="0" max="40" step="0.5" class="num-input">
-      </div>
-      <div class="row">
-        <span>Next check</span>
-        <span id="nextCheck" style="color:var(--muted);">--</span>
-      </div>
+        <div class="row">
+          <span>Check interval</span>
+          <select id="intervalSelect">
+            <option value="30">Every 30 min</option>
+            <option value="60">Every 1 hour</option>
+            <option value="120" selected>Every 2 hours</option>
+            <option value="240">Every 4 hours</option>
+          </select>
+        </div>
+        <div class="row">
+          <span>Weight (price cards)</span>
+          <select id="weightSelect">
+            <option value="1">1 gram</option>
+            <option value="8">8 grams</option>
+            <option value="10" selected>10 grams</option>
+            <option value="11.664">1 tola (11.664g)</option>
+            <option value="20">20 grams</option>
+            <option value="50">50 grams</option>
+            <option value="100">100 grams</option>
+          </select>
+        </div>
+        <div class="row">
+          <span>Next check</span>
+          <span id="nextCheck" style="color:var(--muted);">--</span>
+        </div>
+      </details>
+
+      <details class="settings-group">
+        <summary>Pricing assumptions ▾</summary>
+        <div class="row">
+          <span>India premium over spot (%)</span>
+          <input type="number" id="inrPremium" min="0" max="40" step="0.5" class="num-input">
+        </div>
+        <div class="row">
+          <span>Saudi premium over spot (%)</span>
+          <input type="number" id="sarPremium" min="0" max="40" step="0.5" class="num-input">
+        </div>
+        <div class="row">
+          <span>Other currencies premium (%)</span>
+          <input type="number" id="otherPremium" min="0" max="40" step="0.5" class="num-input">
+        </div>
+        <div class="row">
+          <span>Typical making charge (%)</span>
+          <input type="number" id="makingCharge" min="0" max="40" step="0.5" class="num-input">
+        </div>
+      </details>
     </div>
 
     <div class="section">
@@ -439,7 +431,7 @@
       Background checks run on an in-page timer — reliable while this tab/app is open or backgrounded normally,
       but very aggressive OEM battery managers (some Xiaomi/Oppo/Vivo builds) can delay it unless you allow
       unrestricted battery usage for this app/browser.
-      <br><br>Gold Tracker · v1.1 (Phase 1 redesign)
+      <br><br>Gold Tracker · v1.3 (Increment 3)
     </div>
 
   </div>
@@ -460,6 +452,61 @@
     <span class="tab-icon">⋯</span><span>More</span>
   </button>
 </nav>
+
+<!-- =============================================================== -->
+<!-- ADD PURCHASE — bottom sheet (Increment 3)                        -->
+<!-- Triggered by Portfolio "+ Add" button and the Home "Add Purchase"-->
+<!-- CTA. Same fields/ids/validation as before — only the container   -->
+<!-- changed, from an inline expanding form to an overlay sheet.      -->
+<!-- =============================================================== -->
+<div class="sheet-backdrop" id="purchaseSheetBackdrop"></div>
+<div class="bottom-sheet" id="purchaseFormWrap">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <h2 id="purchaseSheetTitle">Add Purchase</h2>
+    <button class="sheet-close" id="purchaseSheetClose">✕</button>
+  </div>
+
+  <div class="form-grid">
+    <div>
+      <label>Date</label>
+      <input type="date" id="pDate">
+    </div>
+    <div>
+      <label>Karat</label>
+      <select id="pKarat">
+        <option value="24">24K</option>
+        <option value="22" selected>22K</option>
+        <option value="21">21K</option>
+        <option value="18">18K</option>
+      </select>
+    </div>
+    <div>
+      <label>Weight (grams)</label>
+      <input type="number" id="pGrams" placeholder="e.g. 10" step="0.01">
+    </div>
+    <div>
+      <label>Total price paid</label>
+      <input type="number" id="pPrice" placeholder="e.g. 145000" step="0.01">
+    </div>
+    <div>
+      <label>Currency</label>
+      <select id="pCurrency"></select>
+    </div>
+    <div>
+      <label>Jeweller (optional)</label>
+      <input type="text" id="pJeweller" placeholder="e.g. Malabar Gold">
+    </div>
+  </div>
+  <div style="margin-bottom:8px;">
+    <label style="font-size:11px; color:var(--muted); display:block; margin-bottom:4px;">Notes (optional)</label>
+    <input type="text" id="pNotes" placeholder="e.g. bridal necklace, hallmark BIS" style="width:100%; background:#111; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px;">
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button class="btn primary-btn" id="addPurchaseBtn" style="flex:1;">Add purchase</button>
+    <button class="btn" id="cancelEditBtn" style="display:none;">Cancel</button>
+  </div>
+</div>
 
 <script src="./app.js"></script>
 </body>

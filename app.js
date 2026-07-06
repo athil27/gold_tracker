@@ -312,6 +312,57 @@ function rollingAverage(hist, days) {
   return use.reduce((sum, p) => sum + p.usd, 0) / use.length;
 }
 
+/* ----------------------------------------------------------------------------
+   BUY SIGNAL (Increment 3 — Home, above the portfolio-value teaser)
+   Purely derived from the same price-history array the sparkline already
+   uses — no new data source, no chart, just a plain-language read on today's
+   spot vs. its 7-day and 30-day trailing averages.
+---------------------------------------------------------------------------- */
+
+function computeBuySignal() {
+  if (!lastResult) return null;
+  const hist = Settings.getJSON('history', []);
+  const avg7 = rollingAverage(hist, 7);
+  const avg30 = rollingAverage(hist, 30);
+  if (!avg7 || !avg30) return null;
+
+  const cur = lastResult.usdPerOz;
+  // Positive = today is BELOW that average (a dip); negative = above it.
+  const pctVs30 = ((avg30 - cur) / avg30) * 100;
+  const pctVs7 = ((avg7 - cur) / avg7) * 100;
+
+  // The % gap is currency/premium-agnostic (same ratio applies to every
+  // karat and currency), so 22K is used here purely as a familiar reference
+  // point in the reason text, not as the basis of the calculation.
+  const refKarat = '22K';
+
+  if (pctVs30 > 3) {
+    return { key: 'good_window', label: 'Good buy window', cls: 'good',
+      reason: `${refKarat} is ${pctVs30.toFixed(1)}% below its 30-day average.` };
+  }
+  if (pctVs7 > 1.5) {
+    return { key: 'good_dip', label: 'Good dip', cls: 'good',
+      reason: `${refKarat} is ${pctVs7.toFixed(1)}% below its 7-day average.` };
+  }
+  if (pctVs30 < -2) {
+    return { key: 'wait', label: 'Wait', cls: 'bad',
+      reason: `${refKarat} is ${Math.abs(pctVs30).toFixed(1)}% above its 30-day average.` };
+  }
+  return { key: 'neutral', label: 'Neutral', cls: 'neutral',
+    reason: `${refKarat} is within ±1.5% of its recent 7- and 30-day averages.` };
+}
+
+function renderBuySignal() {
+  const card = $('buySignalCard');
+  if (!card) return;
+  const signal = computeBuySignal();
+  if (!signal) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  card.className = 'buy-signal-card ' + signal.cls;
+  $('buySignalLabel').textContent = signal.label;
+  $('buySignalReason').textContent = signal.reason;
+}
+
 function setStatus(state, text) {
   const dot = $('statusDot');
   if (!dot) return;
@@ -596,6 +647,7 @@ function evaluateAlerts(snapshot) {
 
 function renderAll() {
   renderDashboard();
+  renderBuySignal();
   renderPriceCards();
   renderCurrencyChips();
   renderKaratChips();
@@ -629,7 +681,12 @@ function renderDashboard() {
   const headline = computePortfolioHeadline(primary);
   $('dashGrams').textContent = fmt(totalGramsOwned()) + ' g';
 
+  const valueWrap = $('dashValueWrap');
+  const emptyState = $('dashEmptyState');
+
   if (headline.totalInvested > 0) {
+    if (valueWrap) valueWrap.style.display = '';
+    if (emptyState) emptyState.style.display = 'none';
     $('dashPortfolioValue').textContent = headline.totalCurrentValue !== null
       ? money(primary, headline.totalCurrentValue) : '--';
     const gl = headline.gainLoss;
@@ -641,8 +698,8 @@ function renderDashboard() {
       glEl.className = 'dash-gainloss ' + (gl >= 0 ? 'positive' : 'negative');
     }
   } else {
-    $('dashPortfolioValue').textContent = 'No purchases logged yet';
-    $('dashGainLoss').textContent = '';
+    if (valueWrap) valueWrap.style.display = 'none';
+    if (emptyState) emptyState.style.display = '';
   }
 
   const goals = getGoals();
@@ -793,7 +850,14 @@ function renderPortfolio() {
   const groups = computePortfolio();
   const el = $('portfolioBody');
   if (!groups.length) {
-    el.innerHTML = `<div class="subnote">No purchases logged yet — add one in "My Purchases" below and this fills in automatically.</div>`;
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">◆</div>
+        <div class="empty-state-msg">No purchases yet — add your first one and this fills in automatically.</div>
+        <button class="btn primary-btn empty-state-cta" id="portfolioEmptyCta">+ Add your first purchase</button>
+      </div>
+    `;
+    $('portfolioEmptyCta').addEventListener('click', openAddPurchaseSheet);
     return;
   }
   el.innerHTML = groups.map(g => {
@@ -871,7 +935,14 @@ function renderGoals() {
   const goals = getGoals();
   const el = $('goalsList');
   if (!goals.length) {
-    el.innerHTML = `<div class="subnote">No goals yet — add one above.</div>`;
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">◆</div>
+        <div class="empty-state-msg">No goals yet — set a weight target to track your progress toward it.</div>
+        <button class="btn primary-btn empty-state-cta" id="goalsEmptyCta">+ Add your first goal</button>
+      </div>
+    `;
+    $('goalsEmptyCta').addEventListener('click', () => { openGoalForm(); $('goalName')?.focus(); });
     return;
   }
   el.innerHTML = goals.map(g => {
@@ -920,6 +991,7 @@ function renderPurchases() {
   const tbody = $('purchaseTbody');
   const table = $('purchaseTable');
   const filterNote = $('purchaseFilterNote');
+  const emptyState = $('purchasesEmptyState');
 
   if (filterNote) {
     filterNote.style.display = purchaseFilterKarat === null ? 'none' : 'flex';
@@ -928,8 +1000,11 @@ function renderPurchases() {
 
   if (!all.length) {
     table.style.display = 'none';
+    if (emptyState) emptyState.style.display = '';
+    if (filterNote) filterNote.style.display = 'none';
     return;
   }
+  if (emptyState) emptyState.style.display = 'none';
   table.style.display = '';
 
   if (!purchases.length) {
@@ -970,8 +1045,8 @@ function renderPurchases() {
       $('pNotes').value = p.notes || '';
       $('addPurchaseBtn').textContent = 'Save changes';
       $('cancelEditBtn').style.display = 'inline-block';
+      $('purchaseSheetTitle').textContent = 'Edit Purchase';
       openPurchaseForm();
-      window.scrollTo({ top: $('purchasesSection').offsetTop - 10, behavior: 'smooth' });
     });
   });
 }
@@ -986,25 +1061,37 @@ function resetPurchaseForm() {
   $('pNotes').value = '';
   $('addPurchaseBtn').textContent = 'Add purchase';
   $('cancelEditBtn').style.display = 'none';
+  const title = $('purchaseSheetTitle');
+  if (title) title.textContent = 'Add Purchase';
 }
 
-/* ---------- COLLAPSIBLE FORMS (Increment 2 — density fix) ----------
-   Purchase form, goal form, and the custom alert builder are all fully
-   functional forms that already existed in Increment 1 — this only changes
-   their default visibility so the summary/list is the scan surface, and the
-   form is an action, not a permanent fixture. */
+/* ---------- ADD PURCHASE — bottom sheet (Increment 3) ----------
+   Was an inline expanding form (Increment 2); same fields, same validation,
+   same submit logic — only the container changed, to an overlay sheet that
+   can be triggered from Home as well as from Portfolio's "+ Add" button. */
 
 function openPurchaseForm() {
-  $('purchaseFormWrap').style.display = '';
+  $('purchaseFormWrap').classList.add('open');
+  $('purchaseSheetBackdrop').classList.add('open');
   $('togglePurchaseForm').textContent = '− Close';
 }
 function closePurchaseForm() {
-  $('purchaseFormWrap').style.display = 'none';
+  $('purchaseFormWrap').classList.remove('open');
+  $('purchaseSheetBackdrop').classList.remove('open');
   $('togglePurchaseForm').textContent = '+ Add';
 }
 function togglePurchaseForm() {
-  const isOpen = $('purchaseFormWrap').style.display !== 'none';
+  const isOpen = $('purchaseFormWrap').classList.contains('open');
   if (isOpen) { resetPurchaseForm(); closePurchaseForm(); } else { openPurchaseForm(); }
+}
+
+/** Entry point for the Home "Add Purchase" CTA — opens the sheet directly,
+ *  regardless of which tab is currently active, since the sheet is a
+ *  global overlay rather than something scoped to the Portfolio tab. */
+function openAddPurchaseSheet() {
+  resetPurchaseForm();
+  openPurchaseForm();
+  setTimeout(() => $('pGrams')?.focus(), 250);
 }
 
 function openGoalForm() {
@@ -1037,6 +1124,11 @@ function wireCollapsibleForms() {
   $('togglePurchaseForm').addEventListener('click', togglePurchaseForm);
   $('toggleGoalForm').addEventListener('click', toggleGoalForm);
   $('toggleCustomAlert').addEventListener('click', toggleCustomAlertForm);
+
+  // Purchase sheet also closes via its own ✕ button or a tap on the backdrop.
+  $('purchaseSheetClose').addEventListener('click', () => { resetPurchaseForm(); closePurchaseForm(); });
+  $('purchaseSheetBackdrop').addEventListener('click', () => { resetPurchaseForm(); closePurchaseForm(); });
+
   // Start closed — the list/summary is the default view, the form is an action.
   closePurchaseForm();
   closeGoalForm();
@@ -1155,6 +1247,15 @@ function renderComparison() {
   const mini = $('dashCmpMini');
   if (mini) {
     mini.textContent = Math.abs(diffPct) < 0.5 ? 'Same' : (diffPct > 0 ? `Saudi −${diffPct.toFixed(1)}%` : `India −${Math.abs(diffPct).toFixed(1)}%`);
+  }
+
+  const teaser = $('cmpTeaserText');
+  if (teaser) {
+    teaser.textContent = Math.abs(diffPct) < 0.5
+      ? `India and Saudi are roughly the same right now (${money('INR', inr.prem22)}/g, 22K).`
+      : (diffPct > 0
+        ? `Saudi is ~${diffPct.toFixed(1)}% cheaper than India right now (22K).`
+        : `India is ~${Math.abs(diffPct).toFixed(1)}% cheaper than Saudi right now (22K).`);
   }
 }
 
@@ -1523,6 +1624,16 @@ function wireBackup() {
   });
 }
 
+/* ----------------------------------------------------------------------------
+   EMPTY STATE CTAs (Increment 3) — the two that live as static markup in
+   index.html rather than being generated inside a render*() innerHTML call.
+---------------------------------------------------------------------------- */
+
+function wireEmptyStates() {
+  $('dashEmptyCta')?.addEventListener('click', openAddPurchaseSheet);
+  $('purchasesEmptyCta')?.addEventListener('click', openAddPurchaseSheet);
+}
+
 /* ============================================================================
    INIT
    ============================================================================ */
@@ -1575,6 +1686,7 @@ function loadSettingsIntoForm() {
   wireBackup();
   wireQuickCalculator();
   wireCollapsibleForms();
+  wireEmptyStates();
   updateAlertsBadge();
 
   if (lastResult) renderAll();

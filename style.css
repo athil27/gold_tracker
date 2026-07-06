@@ -219,3 +219,54 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
 .tier-header{color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); padding-bottom:8px;}
 .tier-karat{color:var(--gold); font-weight:700; font-size:12px;}
 
+/* ---------- buy signal card (Increment 3 — Home, above portfolio teaser) ---------- */
+.buy-signal-card{
+  border-radius:14px; padding:14px 16px; margin-bottom:14px;
+  border:1px solid var(--border); background:#141414;
+}
+.buy-signal-card.good{ background:rgba(76,175,80,0.10); border-color:var(--green); }
+.buy-signal-card.neutral{ background:#141414; border-color:var(--border); }
+.buy-signal-card.bad{ background:rgba(224,82,82,0.10); border-color:var(--red); }
+.buy-signal-label{ font-size:15px; font-weight:700; color:var(--text); }
+.buy-signal-card.good .buy-signal-label{ color:var(--green); }
+.buy-signal-card.bad .buy-signal-label{ color:var(--red); }
+.buy-signal-card.neutral .buy-signal-label{ color:var(--gold); }
+.buy-signal-reason{ font-size:12px; color:var(--muted); margin-top:4px; line-height:1.4; }
+
+/* ---------- India vs Saudi teaser (Home) — full detail lives in Portfolio ---------- */
+.cmp-teaser .row{ align-items:center; }
+
+/* ---------- empty states (Increment 3) ---------- */
+.empty-state{ text-align:center; padding:22px 10px; }
+.empty-state-inline{ padding:10px 0 2px; }
+.empty-state-icon{ font-size:26px; color:var(--gold-dim); margin-bottom:8px; line-height:1; }
+.empty-state-msg{ font-size:13px; color:var(--muted); margin-bottom:14px; line-height:1.5; max-width:320px; margin-left:auto; margin-right:auto; }
+.empty-state-cta{ display:inline-block; width:auto; padding-left:20px; padding-right:20px; }
+
+/* ---------- settings groups (Increment 3 — More tab) ---------- */
+.settings-group{ border:none; border-top:1px solid var(--border); padding:10px 0 4px; margin:0; }
+.settings-group:first-of-type{ border-top:none; padding-top:0; }
+.settings-group summary{ cursor:pointer; font-size:12px; color:var(--gold); font-weight:700; letter-spacing:0.5px; text-transform:uppercase; list-style:none; padding:4px 0 8px; }
+.settings-group summary::-webkit-details-marker{ display:none; }
+.settings-group[open] summary{ margin-bottom:2px; }
+
+/* ---------- bottom sheet (Increment 3 — Add Purchase) ---------- */
+.sheet-backdrop{
+  position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:90;
+  opacity:0; pointer-events:none; transition:opacity .25s ease;
+}
+.sheet-backdrop.open{ opacity:1; pointer-events:auto; }
+.bottom-sheet{
+  position:fixed; left:0; right:0; bottom:0; z-index:91; background:var(--card);
+  border-top:1px solid var(--border); border-radius:18px 18px 0 0;
+  max-height:88vh; overflow-y:auto; transform:translateY(100%);
+  transition:transform .3s ease; padding:8px 16px calc(20px + env(safe-area-inset-bottom, 0));
+  box-shadow:0 -8px 24px rgba(0,0,0,0.4);
+}
+.bottom-sheet.open{ transform:translateY(0); }
+.sheet-handle{ width:40px; height:4px; background:var(--border); border-radius:4px; margin:6px auto 12px; }
+.sheet-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.sheet-header h2{ font-size:14px; color:var(--gold); margin:0; letter-spacing:0.5px; }
+.sheet-close{ background:none; border:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:4px 8px; }
+.sheet-close:active{ opacity:0.7; }
+
