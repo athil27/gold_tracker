@@ -246,7 +246,7 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
 /* ---------- settings groups (Increment 3 — More tab) ---------- */
 .settings-group{ border:none; border-top:1px solid var(--border); padding:10px 0 4px; margin:0; }
 .settings-group:first-of-type{ border-top:none; padding-top:0; }
-.settings-group summary{ cursor:pointer; font-size:12px; color:var(--gold); font-weight:700; letter-spacing:0.5px; text-transform:uppercase; list-style:none; padding:4px 0 8px; }
+.settings-group summary{ cursor:pointer; font-size:12px; color:var(--gold); font-weight:700; letter-spacing:0.3px; list-style:none; padding:4px 0 8px; }
 .settings-group summary::-webkit-details-marker{ display:none; }
 .settings-group[open] summary{ margin-bottom:2px; }
 
@@ -269,4 +269,53 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
 .sheet-header h2{ font-size:14px; color:var(--gold); margin:0; letter-spacing:0.5px; }
 .sheet-close{ background:none; border:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:4px 8px; }
 .sheet-close:active{ opacity:0.7; }
+
+/* ---------- Home decision-surface stack (Increment 4) ----------
+   buySignalCard, cmpTeaserSection, landedCostCard, and portfolioBlock all
+   live inside this flex column; JS sets `order` on each per the active
+   persona, so reordering is a style change, not a DOM reshuffle. */
+.card-stack{ display:flex; flex-direction:column; }
+
+/* ---------- trust panel (Increment 4 — inline "how we calculate this") ----------
+   Reuses the generic <details> styling already defined above; this just
+   tightens spacing when it's nested inside the comparison teaser card
+   instead of sitting in its own section. */
+.cmp-teaser details{ margin-top:10px; padding:8px 10px; }
+.cmp-teaser details summary{ font-size:12px; }
+.cmp-teaser details p{ margin:0; }
+
+/* ---------- landed cost progress (Increment 4 — Home + Portfolio) ---------- */
+.landed-progress-label{ display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; }
+.landed-progress-label span:last-child{ font-weight:700; color:var(--gold); }
+
+/* ---------- persona onboarding modal (Increment 4) ----------
+   Centered overlay, distinct from the Add Purchase bottom sheet — this is
+   a one-time (or revisitable-from-Settings) choice, not a repeated action,
+   so it doesn't need the slide-up affordance a frequent action gets. */
+.persona-overlay{
+  position:fixed; inset:0; z-index:95; background:rgba(0,0,0,0.6);
+  display:none; align-items:center; justify-content:center; padding:20px;
+}
+.persona-overlay.open{ display:flex; }
+.persona-modal{
+  background:var(--card); border:1px solid var(--border); border-radius:18px;
+  padding:24px 20px 20px; max-width:360px; width:100%; position:relative;
+}
+.persona-modal .close-x{
+  position:absolute; top:10px; right:12px; background:none; border:none;
+  color:var(--muted); font-size:16px; cursor:pointer; padding:6px;
+}
+.persona-intro{ text-align:center; margin-bottom:16px; }
+.persona-intro .p-title{ color:var(--gold); font-size:15px; font-weight:700; margin:0; }
+.persona-intro .p-sub{ color:var(--muted); font-size:11px; margin:6px 0 0; line-height:1.5; }
+.persona-card{
+  display:block; width:100%; text-align:left; background:#111;
+  border:1px solid var(--border); border-radius:14px; padding:12px 14px;
+  cursor:pointer; color:var(--text); margin-bottom:10px;
+}
+.persona-card:last-child{ margin-bottom:0; }
+.persona-card:active{ opacity:0.85; }
+.persona-card.active{ border-color:var(--gold); background:rgba(212,175,55,0.08); }
+.persona-card .p-title{ font-size:13px; font-weight:700; margin:0; }
+.persona-card .p-sub{ font-size:11px; color:var(--muted); margin:2px 0 0; }
 

@@ -30,51 +30,72 @@
   <!-- =========================================================== -->
   <div class="tab-panel" id="tab-home">
 
-    <div class="buy-signal-card" id="buySignalCard" style="display:none;">
-      <div class="buy-signal-label" id="buySignalLabel">--</div>
-      <div class="buy-signal-reason" id="buySignalReason"></div>
-    </div>
+    <div class="card-stack" id="homeCardStack">
 
-    <div class="section" id="dashboardSection">
-      <div class="dash-hero">
-        <div class="dash-label">Portfolio value</div>
-        <div id="dashValueWrap">
-          <div class="dash-value dash-value-lg" id="dashPortfolioValue">--</div>
-          <div id="dashGainLoss" class="dash-gainloss">--</div>
+      <div class="buy-signal-card" id="buySignalCard" style="display:none;">
+        <div class="buy-signal-label" id="buySignalLabel">--</div>
+        <div class="buy-signal-reason" id="buySignalReason"></div>
+      </div>
+
+      <div class="section cmp-teaser" id="cmpTeaserSection">
+        <div class="row" style="border-bottom:none; padding:2px 0;">
+          <span id="cmpTeaserText" style="font-size:13px;">Loading India vs Saudi comparison...</span>
+          <a class="link-btn" onclick="goToTab('portfolio')">Full detail →</a>
         </div>
-        <div class="empty-state empty-state-inline" id="dashEmptyState" style="display:none;">
-          <div class="empty-state-msg">No purchases yet — add your first one to see your portfolio value.</div>
-          <button class="btn primary-btn empty-state-cta" id="dashEmptyCta">+ Add your first purchase</button>
+        <details>
+          <summary>How we calculate this ▾</summary>
+          <p class="subnote" id="trustMethodologyText">Spot price plus each country's typical premium, converted at today's exchange rate.</p>
+        </details>
+      </div>
+
+      <div class="section" id="landedCostCard">
+        <div id="landedCostHomeBody"></div>
+      </div>
+
+      <div id="portfolioBlock">
+        <div class="section" id="dashboardSection">
+          <div class="dash-hero">
+            <div class="dash-label">Portfolio value</div>
+            <div id="dashValueWrap">
+              <div class="dash-value dash-value-lg" id="dashPortfolioValue">--</div>
+              <div id="dashGainLoss" class="dash-gainloss">--</div>
+            </div>
+            <div class="empty-state empty-state-inline" id="dashEmptyState" style="display:none;">
+              <div class="empty-state-msg">No purchases yet — add your first one to see your portfolio value.</div>
+              <button class="btn primary-btn empty-state-cta" id="dashEmptyCta">+ Add your first purchase</button>
+            </div>
+          </div>
+          <div id="priceTierRow" style="margin-bottom:14px;"></div>
+          <div class="dash-grid">
+            <div class="dash-card">
+              <div class="dash-label">Total weight owned</div>
+              <div class="dash-value" id="dashGrams">--</div>
+            </div>
+            <div class="dash-card">
+              <div class="dash-label">India vs Saudi</div>
+              <div class="dash-value dash-value-sm" id="dashCmpMini">--</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="primary-btn" onclick="openAddPurchaseSheet()">Add purchase</button>
+          <button class="primary-btn secondary-action" onclick="goToTab('alerts', true)">Set alert</button>
+        </div>
+
+        <div class="section">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="dash-label">Top goal</div>
+            <a class="link-btn" onclick="goToTab('portfolio')">View all →</a>
+          </div>
+          <div id="dashGoalMini" style="margin-top:8px;"></div>
         </div>
       </div>
-      <div id="priceTierRow" style="margin-bottom:14px;"></div>
-      <div class="dash-grid">
-        <div class="dash-card">
-          <div class="dash-label">Total weight owned</div>
-          <div class="dash-value" id="dashGrams">--</div>
-        </div>
-        <div class="dash-card">
-          <div class="dash-label">India vs Saudi</div>
-          <div class="dash-value dash-value-sm" id="dashCmpMini">--</div>
-        </div>
-      </div>
-    </div>
 
-    <div class="action-row">
-      <button class="primary-btn" onclick="openAddPurchaseSheet()">Add Purchase</button>
-      <button class="primary-btn secondary-action" onclick="goToTab('alerts', true)">Set Alert</button>
     </div>
 
     <div class="section">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="dash-label">Top goal</div>
-        <a class="link-btn" onclick="goToTab('portfolio')">View all →</a>
-      </div>
-      <div id="dashGoalMini" style="margin-top:8px;"></div>
-    </div>
-
-    <div class="section">
-      <h2>QUICK CALCULATOR</h2>
+      <h2>Quick calculator</h2>
       <div class="form-grid">
         <div>
           <label>Weight (grams)</label>
@@ -93,25 +114,18 @@
       <div class="grid" id="priceCardsGrid" style="margin-top:12px;"></div>
       <div class="grid" style="margin-top:0;">
         <div class="card full-card">
-          <div class="karat">SPOT PRICE</div>
+          <div class="karat">Spot price</div>
           <div class="currency-label">USD per troy ounce (XAU)</div>
           <div class="amount" id="spotUsd">--</div>
           <div class="unit" id="spotTopLine">--</div>
         </div>
       </div>
-      <button class="btn" style="width:100%;" onclick="fetchGoldPrice()">Check Price Now</button>
+      <button class="btn" style="width:100%;" onclick="fetchGoldPrice()">Check price now</button>
     </details>
-
-    <div class="section cmp-teaser" id="cmpTeaserSection">
-      <div class="row" style="border-bottom:none; padding:2px 0;">
-        <span id="cmpTeaserText" style="font-size:13px;">Loading India vs Saudi comparison...</span>
-        <a class="link-btn" onclick="goToTab('portfolio')">Full detail →</a>
-      </div>
-    </div>
 
     <details class="section-details">
       <summary>Price trend ▾</summary>
-      <h2 style="margin-top:0;">PRICE TREND <span class="badge dim" id="trendDays">--</span></h2>
+      <h2 style="margin-top:0;">Price trend <span class="badge dim" id="trendDays">--</span></h2>
       <svg id="sparkline" viewBox="0 0 300 60" style="width:100%; height:60px; margin-top:8px;"></svg>
       <div class="subnote">History builds up as you use the app — the longer it runs, the more useful this gets.</div>
     </details>
@@ -124,27 +138,49 @@
   <div class="tab-panel" id="tab-portfolio" style="display:none;">
 
     <div class="section">
-      <h2>ALLOCATION BY KARAT</h2>
+      <h2>Allocation by karat</h2>
       <div id="allocationBar"></div>
     </div>
 
     <div class="section">
-      <h2>PORTFOLIO SUMMARY</h2>
+      <h2>Portfolio summary</h2>
       <div id="portfolioBody"></div>
       <div class="subnote" style="margin-top:10px;">Current value uses today's local-market (premium) price, not jeweller-inclusive — resale typically doesn't recover making charges, so this is a more realistic valuation.</div>
     </div>
 
     <div class="section">
-      <h2>INDIA VS SAUDI — FULL COMPARISON</h2>
+      <h2>India vs Saudi — full comparison</h2>
       <div class="cmp-row"><span>India retail (22K/g)</span><span class="cmp-val" id="cmpIndia">--</span></div>
       <div class="cmp-row"><span>Saudi retail, converted to ₹ (22K/g)</span><span class="cmp-val" id="cmpSaudi">--</span></div>
       <div class="cmp-row"><span id="cmpResult">--</span><span></span></div>
       <div class="subnote">Uses today's exchange rate only — doesn't account for your actual remittance rate or transfer fees.</div>
     </div>
 
+    <div class="section" id="landedCostSection">
+      <div class="section-header-row">
+        <h2>Landed cost (NRI)</h2>
+        <button class="chip-toggle" id="toggleLandedCostForm">Edit</button>
+      </div>
+      <div id="landedCostBody"></div>
+      <div id="landedCostFormWrap" style="display:none; margin-top:12px;">
+        <div class="form-grid">
+          <div>
+            <label>Duty-free allowance (grams)</label>
+            <input type="number" id="lcAllowance" placeholder="e.g. 20" step="0.1">
+          </div>
+          <div>
+            <label>Grams brought so far</label>
+            <input type="number" id="lcGramsBrought" placeholder="e.g. 10" step="0.1">
+          </div>
+        </div>
+        <button class="btn" id="saveLandedCostBtn" style="width:100%;">Save trip</button>
+        <div class="subnote" style="margin-top:8px;">Allowance varies by traveller and changes with each Union Budget — check Reference in More before relying on this for customs.</div>
+      </div>
+    </div>
+
     <div class="section">
       <div class="section-header-row">
-        <h2>GOALS</h2>
+        <h2>Goals</h2>
         <button class="chip-toggle" id="toggleGoalForm">+ Add</button>
       </div>
       <div id="goalFormWrap">
@@ -175,7 +211,7 @@
 
     <div class="section" id="purchasesSection">
       <div class="section-header-row">
-        <h2>MY PURCHASES</h2>
+        <h2>Purchase log</h2>
         <button class="chip-toggle" id="togglePurchaseForm">+ Add</button>
       </div>
 
@@ -208,12 +244,12 @@
     </div>
 
     <div class="section">
-      <h2>NOTIFICATION HEALTH</h2>
+      <h2>Notification health</h2>
       <div id="notifHealthCard"></div>
     </div>
 
     <div class="section">
-      <h2>PRESETS</h2>
+      <h2>Presets</h2>
       <div class="preset-row">
         <span class="currency-chip" onclick="applyAlertPreset('dip3')">Any 3%+ dip</span>
         <span class="currency-chip" onclick="applyAlertPreset('dip5')">5%+ dip</span>
@@ -222,13 +258,13 @@
     </div>
 
     <div class="section">
-      <h2>YOUR ALERTS</h2>
+      <h2>Your alerts</h2>
       <div id="alertsList"></div>
     </div>
 
     <div class="section">
       <div class="section-header-row">
-        <h2 style="margin:0;">CUSTOM ALERT</h2>
+        <h2 style="margin:0;">Custom alert</h2>
         <button class="chip-toggle" id="toggleCustomAlert">+ Custom alert</button>
       </div>
 
@@ -310,10 +346,15 @@
   <div class="tab-panel" id="tab-more" style="display:none;">
 
     <div class="section">
-      <h2>SETTINGS</h2>
+      <h2>Settings</h2>
 
       <details class="settings-group" open>
         <summary>Display ▾</summary>
+        <div class="row">
+          <span>Persona</span>
+          <button class="btn" id="changePersonaBtn" style="padding:6px 14px;">Change</button>
+        </div>
+
         <div class="row" style="display:block;">
           <span style="display:block; margin-bottom:8px;">Currencies to show</span>
           <div id="currencyChips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
@@ -389,7 +430,7 @@
     </div>
 
     <div class="section">
-      <h2>DATA</h2>
+      <h2>Data</h2>
       <div class="subnote">Everything in this app lives only in this browser's local storage. Export it periodically so you don't lose it if you clear browser data or switch devices.</div>
       <div class="export-row">
         <button class="btn" id="exportBtn">Export data</button>
@@ -400,7 +441,7 @@
     </div>
 
     <div class="section">
-      <h2>REFERENCE</h2>
+      <h2>Reference</h2>
       <details>
         <summary>NRI gold duty-free allowance (India) ▾</summary>
         <p>Under India's Baggage Rules 2026, for Indian passport holders/NRIs who've stayed abroad continuously for 1+ year, arriving with <strong>gold jewellery</strong> (not bars/coins):</p>
@@ -422,7 +463,7 @@
     </div>
 
     <div class="section">
-      <h2>RECENT CHECKS</h2>
+      <h2>Recent checks</h2>
       <div id="logList"><div class="log-entry"><span>No checks yet</span></div></div>
     </div>
 
@@ -431,7 +472,7 @@
       Background checks run on an in-page timer — reliable while this tab/app is open or backgrounded normally,
       but very aggressive OEM battery managers (some Xiaomi/Oppo/Vivo builds) can delay it unless you allow
       unrestricted battery usage for this app/browser.
-      <br><br>Gold Tracker · v1.3 (Increment 3)
+      <br><br>Gold Tracker · v1.4 (Increment 4)
     </div>
 
   </div>
@@ -463,7 +504,7 @@
 <div class="bottom-sheet" id="purchaseFormWrap">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
-    <h2 id="purchaseSheetTitle">Add Purchase</h2>
+    <h2 id="purchaseSheetTitle">Add purchase</h2>
     <button class="sheet-close" id="purchaseSheetClose">✕</button>
   </div>
 
@@ -505,6 +546,36 @@
   <div style="display:flex; gap:8px;">
     <button class="btn primary-btn" id="addPurchaseBtn" style="flex:1;">Add purchase</button>
     <button class="btn" id="cancelEditBtn" style="display:none;">Cancel</button>
+  </div>
+</div>
+
+<!-- =============================================================== -->
+<!-- PERSONA ONBOARDING — centered modal (Increment 4)                -->
+<!-- Shown on first launch (no persona set yet) and reachable anytime -->
+<!-- from More → Display → Persona → Change. Picking a persona        -->
+<!-- reorders the Home decision-surface cards; dismissing without      -->
+<!-- picking leaves the neutral default order and asks again next     -->
+<!-- launch, since this is a preference, not a gate.                  -->
+<!-- =============================================================== -->
+<div class="persona-overlay" id="personaOverlay">
+  <div class="persona-modal">
+    <button class="close-x" id="personaCloseX" aria-label="Close">✕</button>
+    <div class="persona-intro">
+      <p class="p-title">Welcome to Gold Tracker</p>
+      <p class="p-sub">What brings you here? This sets up your home screen. Change it anytime in More.</p>
+    </div>
+    <button class="persona-card" data-persona="buyer">
+      <p class="p-title">Buying gold</p>
+      <p class="p-sub">Timing purchases, comparing prices</p>
+    </button>
+    <button class="persona-card" data-persona="investor">
+      <p class="p-title">Tracking it as an investment</p>
+      <p class="p-sub">Portfolio value, trends, analytics</p>
+    </button>
+    <button class="persona-card" data-persona="nri">
+      <p class="p-title">NRI, buying to bring home</p>
+      <p class="p-sub">India vs Saudi pricing, duty-free planning</p>
+    </button>
   </div>
 </div>
 

@@ -1045,7 +1045,7 @@ function renderPurchases() {
       $('pNotes').value = p.notes || '';
       $('addPurchaseBtn').textContent = 'Save changes';
       $('cancelEditBtn').style.display = 'inline-block';
-      $('purchaseSheetTitle').textContent = 'Edit Purchase';
+      $('purchaseSheetTitle').textContent = 'Edit purchase';
       openPurchaseForm();
     });
   });
@@ -1062,7 +1062,7 @@ function resetPurchaseForm() {
   $('addPurchaseBtn').textContent = 'Add purchase';
   $('cancelEditBtn').style.display = 'none';
   const title = $('purchaseSheetTitle');
-  if (title) title.textContent = 'Add Purchase';
+  if (title) title.textContent = 'Add purchase';
 }
 
 /* ---------- ADD PURCHASE — bottom sheet (Increment 3) ----------
@@ -1256,6 +1256,11 @@ function renderComparison() {
       : (diffPct > 0
         ? `Saudi is ~${diffPct.toFixed(1)}% cheaper than India right now (22K).`
         : `India is ~${Math.abs(diffPct).toFixed(1)}% cheaper than Saudi right now (22K).`);
+  }
+
+  const methodology = $('trustMethodologyText');
+  if (methodology) {
+    methodology.textContent = `Spot price plus India's ${getPremiumPctFor('INR')}% and Saudi's ${getPremiumPctFor('SAR')}% premiums (editable in Settings), converted at today's exchange rate. Doesn't account for your actual remittance rate or transfer fees.`;
   }
 }
 
@@ -1634,6 +1639,138 @@ function wireEmptyStates() {
   $('purchasesEmptyCta')?.addEventListener('click', openAddPurchaseSheet);
 }
 
+/* ----------------------------------------------------------------------------
+   PERSONA & HOME REORDERING (Increment 4)
+   A single localStorage flag reorders the same four existing Home blocks —
+   no new data, no per-persona content. Empty string means "not chosen yet",
+   which both triggers the onboarding overlay and falls back to the buyer
+   order (the most neutral of the three) for anyone who dismisses it.
+---------------------------------------------------------------------------- */
+
+const PERSONA_ORDER = {
+  buyer:    { buySignalCard: 0, cmpTeaserSection: 1, portfolioBlock: 2, landedCostCard: 3 },
+  investor: { buySignalCard: 0, portfolioBlock: 1, cmpTeaserSection: 2, landedCostCard: 3 },
+  nri:      { cmpTeaserSection: 0, landedCostCard: 1, buySignalCard: 2, portfolioBlock: 3 }
+};
+
+function getPersona() {
+  return Settings.get('persona', '');
+}
+
+function applyPersonaOrder() {
+  const orderMap = PERSONA_ORDER[getPersona()] || PERSONA_ORDER.buyer;
+  Object.keys(orderMap).forEach(id => {
+    const el = $(id);
+    if (el) el.style.order = orderMap[id];
+  });
+}
+
+function openPersonaOnboarding() {
+  $('personaOverlay').classList.add('open');
+  document.querySelectorAll('.persona-card').forEach(card => {
+    card.classList.toggle('active', card.dataset.persona === getPersona());
+  });
+}
+function closePersonaOnboarding() {
+  $('personaOverlay').classList.remove('open');
+}
+
+function setPersona(persona) {
+  Settings.set('persona', persona);
+  applyPersonaOrder();
+  closePersonaOnboarding();
+}
+
+function wirePersonaOnboarding() {
+  document.querySelectorAll('.persona-card').forEach(card => {
+    card.addEventListener('click', () => setPersona(card.dataset.persona));
+  });
+  $('personaCloseX').addEventListener('click', closePersonaOnboarding);
+  $('changePersonaBtn').addEventListener('click', openPersonaOnboarding);
+
+  if (!getPersona()) openPersonaOnboarding();
+}
+
+/* ----------------------------------------------------------------------------
+   LANDED COST (NRI) (Increment 4)
+   Deliberately minimal for Phase 1 — one active trip's duty-free allowance
+   vs. grams brought so far, not a full trip ledger (that's NRI Pro territory,
+   out of scope here). New key, additive — doesn't touch the v3 schema.
+---------------------------------------------------------------------------- */
+
+function getTrip() {
+  return Settings.getJSON('trip', null);
+}
+function saveTrip(trip) {
+  Settings.set('trip', trip);
+  renderLandedCost();
+}
+
+function renderLandedCost() {
+  const trip = getTrip();
+  const homeBody = $('landedCostHomeBody');
+  const portfolioBody = $('landedCostBody');
+  if (!homeBody || !portfolioBody) return;
+
+  if (!trip || !trip.allowanceGrams) {
+    homeBody.innerHTML = `
+      <div class="empty-state empty-state-inline">
+        <div class="empty-state-msg">Bringing gold home? Track your duty-free allowance across the trip.</div>
+        <button class="btn primary-btn empty-state-cta" id="landedCostHomeCta">Set up your first trip</button>
+      </div>
+    `;
+    $('landedCostHomeCta').addEventListener('click', openLandedCostFromHome);
+    portfolioBody.innerHTML = `<div class="subnote">No trip set up yet — tap Edit to add your allowance and what you're bringing.</div>`;
+    return;
+  }
+
+  const pct = Math.min(100, (trip.gramsBrought / trip.allowanceGrams) * 100);
+  const remaining = Math.max(0, trip.allowanceGrams - trip.gramsBrought);
+  const summaryHtml = `
+    <div class="landed-progress-label"><span>Allowance used</span><span>${fmt(trip.gramsBrought)}g of ${fmt(trip.allowanceGrams)}g</span></div>
+    <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%;"></div></div>
+    <div class="subnote" style="margin-top:8px;">${remaining > 0 ? `${fmt(remaining)}g of allowance remaining.` : 'Allowance fully used — anything more may attract customs duty.'}</div>
+  `;
+  homeBody.innerHTML = `<div class="dash-label" style="margin-bottom:8px;">Landed cost (NRI)</div>` + summaryHtml;
+  portfolioBody.innerHTML = summaryHtml;
+}
+
+function openLandedCostForm() {
+  const trip = getTrip();
+  $('lcAllowance').value = trip ? trip.allowanceGrams : '';
+  $('lcGramsBrought').value = trip ? trip.gramsBrought : '';
+  $('landedCostFormWrap').style.display = '';
+  $('toggleLandedCostForm').textContent = '− Close';
+}
+function closeLandedCostForm() {
+  $('landedCostFormWrap').style.display = 'none';
+  $('toggleLandedCostForm').textContent = 'Edit';
+}
+function toggleLandedCostForm() {
+  const isOpen = $('landedCostFormWrap').style.display !== 'none';
+  if (isOpen) closeLandedCostForm(); else openLandedCostForm();
+}
+
+function openLandedCostFromHome() {
+  goToTab('portfolio');
+  setTimeout(() => {
+    openLandedCostForm();
+    $('lcAllowance')?.focus();
+  }, 60);
+}
+
+function wireLandedCostForm() {
+  $('toggleLandedCostForm').addEventListener('click', toggleLandedCostForm);
+  $('saveLandedCostBtn').addEventListener('click', () => {
+    const allowanceGrams = parseFloat($('lcAllowance').value);
+    const gramsBrought = parseFloat($('lcGramsBrought').value) || 0;
+    if (!allowanceGrams || allowanceGrams <= 0) { $('lcAllowance').focus(); return; }
+    saveTrip({ allowanceGrams, gramsBrought, updatedAt: Date.now() });
+    closeLandedCostForm();
+  });
+  closeLandedCostForm();
+}
+
 /* ============================================================================
    INIT
    ============================================================================ */
@@ -1687,6 +1824,10 @@ function loadSettingsIntoForm() {
   wireQuickCalculator();
   wireCollapsibleForms();
   wireEmptyStates();
+  wirePersonaOnboarding();
+  wireLandedCostForm();
+  applyPersonaOrder();
+  renderLandedCost();
   updateAlertsBadge();
 
   if (lastResult) renderAll();
