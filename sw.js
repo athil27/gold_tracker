@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gold-tracker-v7';
+const CACHE_NAME = 'gold-tracker-v8';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {

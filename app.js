@@ -313,6 +313,91 @@ function rollingAverage(hist, days) {
 }
 
 /* ----------------------------------------------------------------------------
+   TREND BACKFILL (Increment 5)
+   Authentic 90-day history from gold-api.com's /history endpoint (same
+   provider/domain the app already uses for the live price), merged with the
+   existing in-app check-in history rather than replacing it:
+     - gold-api.com fills in every day BEFORE your first in-app check —
+       so the trend/Buy Signal/drop_vs_avg alerts are meaningful from day
+       one, not after weeks of waiting for local history to accumulate.
+     - Your own in-app checks remain the live tail — today's price is
+       always whatever you actually last saw, not a cached daily close.
+   Cached for 24h (`goldtracker_trendCache`) so this is at most one API
+   call per day per browser — the free tier is 10 requests/hour, and daily
+   caching keeps real-world usage nowhere near that even shared across a
+   handful of people using the app. If the fetch fails for any reason
+   (network, key, rate limit), everything silently falls back to
+   in-app-only history, same as before this increment.
+---------------------------------------------------------------------------- */
+
+const GOLD_API_KEY = '4715ac8a399df3cf41608ca2590818f5ab5fa10393456164c540e1acb4b8e00e';
+const TREND_DAYS = 90;
+const TREND_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function dateStrToMs(dateStr) {
+  // Midday UTC avoids a date being nudged into the wrong day by timezone rounding.
+  return new Date(dateStr + 'T12:00:00Z').getTime();
+}
+
+/** Defensive on purpose: gold-api.com's /history response shape isn't
+ *  confirmed from their docs (a JS-rendered page our fetch tools can't
+ *  read through), so this tries the field names/shapes other price APIs
+ *  in this space commonly use, rather than assuming one and breaking
+ *  outright on a mismatch. Same spirit as the multi-fallback parsing
+ *  sw.js already does for the price endpoint. */
+function parseTrendHistoryResponse(data) {
+  const raw = Array.isArray(data) ? data
+    : Array.isArray(data?.history) ? data.history
+    : Array.isArray(data?.prices) ? data.prices
+    : Array.isArray(data?.data) ? data.data
+    : Array.isArray(data?.results) ? data.results
+    : [];
+
+  return raw.map(item => {
+    const date = item.date || item.day || item.timestamp || item.updatedAt || null;
+    const price = item.price ?? item.close ?? item.rate ?? item.value ?? null;
+    return (date && price != null) ? { date: String(date).slice(0, 10), usdPerOz: Number(price) } : null;
+  }).filter(Boolean);
+}
+
+async function fetchTrendBackfill(force) {
+  const cache = Settings.getJSON('trendCache', null);
+  const isFresh = cache && cache.fetchedAt && (Date.now() - cache.fetchedAt < TREND_CACHE_MAX_AGE_MS);
+  if (isFresh && !force) return;
+
+  try {
+    const res = await fetch(`https://api.gold-api.com/history/XAU?days=${TREND_DAYS}`, {
+      headers: { 'x-api-key': GOLD_API_KEY }
+    });
+    if (!res.ok) throw new Error('Trend history fetch failed: HTTP ' + res.status);
+    const data = await res.json();
+    const points = parseTrendHistoryResponse(data);
+    if (!points.length) throw new Error('Trend history response had no recognizable data points');
+    Settings.set('trendCache', { fetchedAt: Date.now(), days: TREND_DAYS, points, source: 'gold-api.com' });
+  } catch (err) {
+    console.error('Trend backfill failed — falling back to in-app-only history.', err);
+    // Deliberately don't clear an existing cache on failure; a stale-but-valid
+    // backfill is still more useful than none until the next successful fetch.
+  }
+}
+
+/** Combines the (rarely-fetched) backfill with the (frequently-updated) local
+ *  in-app history: backfill covers everything before your first local check,
+ *  local history covers everything from then on — so there's never a
+ *  duplicate or conflicting point for the same day. */
+function getMergedHistory() {
+  const local = Settings.getJSON('history', []);
+  const cache = Settings.getJSON('trendCache', null);
+  const backfill = ((cache && cache.points) || []).map(p => ({ t: dateStrToMs(p.date), usd: p.usdPerOz }));
+
+  if (!local.length) return backfill.sort((a, b) => a.t - b.t);
+
+  const earliestLocalT = Math.min(...local.map(p => p.t));
+  const olderBackfill = backfill.filter(p => p.t < earliestLocalT);
+  return [...olderBackfill, ...local].sort((a, b) => a.t - b.t);
+}
+
+/* ----------------------------------------------------------------------------
    BUY SIGNAL (Increment 3 — Home, above the portfolio-value teaser)
    Purely derived from the same price-history array the sparkline already
    uses — no new data source, no chart, just a plain-language read on today's
@@ -321,7 +406,7 @@ function rollingAverage(hist, days) {
 
 function computeBuySignal() {
   if (!lastResult) return null;
-  const hist = Settings.getJSON('history', []);
+  const hist = getMergedHistory();
   const avg7 = rollingAverage(hist, 7);
   const avg30 = rollingAverage(hist, 30);
   if (!avg7 || !avg30) return null;
@@ -561,7 +646,7 @@ function alertLabel(a) {
 
 function evaluateAlerts(snapshot) {
   const alerts = getAlerts();
-  const hist = Settings.getJSON('history', []);
+  const hist = getMergedHistory();
   const triggeredNow = [];
   let changed = false;
 
@@ -656,7 +741,7 @@ function renderAll() {
   renderPurchases();
   renderAlerts();
   renderNotificationHealth();
-  renderTrend(Settings.getJSON('history', []));
+  renderTrend(getMergedHistory());
   renderComparison();
   renderLog();
   renderLastUpdated();
@@ -1207,10 +1292,14 @@ function renderAlerts() {
 
 function renderTrend(hist) {
   if (!hist.length) return;
+  const cache = Settings.getJSON('trendCache', null);
+  const hasBackfill = !!(cache && cache.points && cache.points.length);
   const spanDays = hist.length > 1 ? Math.max(1, Math.round((hist[hist.length - 1].t - hist[0].t) / 86400000)) : 0;
-  $('trendDays').textContent = spanDays > 0 ? `${spanDays}-day history (${hist.length} checks)` : 'building history...';
+  $('trendDays').textContent = spanDays > 0
+    ? (hasBackfill ? `${spanDays}-day history (gold-api.com + live)` : `${spanDays}-day history (${hist.length} checks)`)
+    : 'building history...';
 
-  const points = hist.slice(-60);
+  const points = hist.slice(-90);
   const svg = $('sparkline');
   if (points.length < 2) {
     svg.innerHTML = `<text x="150" y="34" text-anchor="middle" fill="#666" font-size="11">Collecting data — check back after a few checks</text>`;
@@ -1834,4 +1923,13 @@ function loadSettingsIntoForm() {
 
   fetchGoldPrice();
   scheduleNext();
+
+  // Trend backfill (Increment 5) — fire-and-forget, cached for 24h. Runs
+  // after the first render so the app is usable immediately; once it
+  // resolves, re-render the views that read merged history so the "authentic"
+  // 90-day trend/Buy Signal appear without waiting for a reload.
+  fetchTrendBackfill().then(() => {
+    renderTrend(getMergedHistory());
+    renderBuySignal();
+  });
 })();
