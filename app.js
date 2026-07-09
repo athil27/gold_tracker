@@ -339,12 +339,16 @@ function dateStrToMs(dateStr) {
   return new Date(dateStr + 'T12:00:00Z').getTime();
 }
 
-/** Defensive on purpose: gold-api.com's /history response shape isn't
- *  confirmed from their docs (a JS-rendered page our fetch tools can't
- *  read through), so this tries the field names/shapes other price APIs
- *  in this space commonly use, rather than assuming one and breaking
- *  outright on a mismatch. Same spirit as the multi-fallback parsing
- *  sw.js already does for the price endpoint. */
+/** Confirmed live shape (2026-07): a GET to
+ *  /history?symbol=XAU&startTimestamp=...&endTimestamp=...&groupBy=day
+ *  returns a plain array, most-recent-first:
+ *    [{ "day": "2026-07-08 00:00:00", "max_price": "4134.700200" }, ...]
+ *  Note this is the day's HIGH, not a closing price — the free tier
+ *  doesn't expose OHLC/close separately. Good enough for a trend line;
+ *  worth knowing if the chart looks slightly more jagged/peaky than a
+ *  close-based series would. Still tries other common field names/shapes
+ *  defensively in case the response format differs for other query
+ *  combinations or changes later. */
 function parseTrendHistoryResponse(data) {
   const raw = Array.isArray(data) ? data
     : Array.isArray(data?.history) ? data.history
@@ -354,8 +358,8 @@ function parseTrendHistoryResponse(data) {
     : [];
 
   return raw.map(item => {
-    const date = item.date || item.day || item.timestamp || item.updatedAt || null;
-    const price = item.price ?? item.close ?? item.rate ?? item.value ?? null;
+    const date = item.day || item.date || item.timestamp || item.updatedAt || null;
+    const price = item.max_price ?? item.price ?? item.close ?? item.rate ?? item.value ?? null;
     return (date && price != null) ? { date: String(date).slice(0, 10), usdPerOz: Number(price) } : null;
   }).filter(Boolean);
 }
@@ -366,9 +370,10 @@ async function fetchTrendBackfill(force) {
   if (isFresh && !force) return;
 
   try {
-    const res = await fetch(`https://api.gold-api.com/history/XAU?days=${TREND_DAYS}`, {
-      headers: { 'x-api-key': GOLD_API_KEY }
-    });
+    const endTimestamp = Math.floor(Date.now() / 1000);
+    const startTimestamp = endTimestamp - TREND_DAYS * 24 * 60 * 60;
+    const url = `https://api.gold-api.com/history?symbol=XAU&startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}&groupBy=day`;
+    const res = await fetch(url, { headers: { 'x-api-key': GOLD_API_KEY } });
     if (!res.ok) throw new Error('Trend history fetch failed: HTTP ' + res.status);
     const data = await res.json();
     const points = parseTrendHistoryResponse(data);
