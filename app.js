@@ -921,9 +921,6 @@ function renderDashboard() {
   const primary = getPrimaryCurrency();
 
   if (!lastResult) {
-    $('dashPortfolioValue').textContent = '--';
-    $('dashGainLoss').textContent = '--';
-    $('dashGrams').textContent = '--';
     renderPriceTierRow(primary, null);
     return;
   }
@@ -932,44 +929,53 @@ function renderDashboard() {
   renderPriceTierRow(primary, p);
 
   const headline = computePortfolioHeadline(primary);
-  $('dashGrams').textContent = fmt(totalGramsOwned()) + ' g';
-
-  const valueWrap = $('dashValueWrap');
+  const holdingsLine = $('holdingsLine');
   const emptyState = $('dashEmptyState');
 
   if (headline.totalInvested > 0) {
-    if (valueWrap) valueWrap.style.display = '';
+    if (holdingsLine) holdingsLine.style.display = '';
     if (emptyState) emptyState.style.display = 'none';
-    $('dashPortfolioValue').textContent = headline.totalCurrentValue !== null
-      ? money(primary, headline.totalCurrentValue) : '--';
+
+    const grams = fmt(totalGramsOwned());
+    const value = headline.totalCurrentValue !== null ? money(primary, headline.totalCurrentValue) : '--';
     const gl = headline.gainLoss;
     const glPct = headline.gainLossPct;
-    const glEl = $('dashGainLoss');
+    let glHtml = '';
     if (gl !== null) {
       const sign = gl >= 0 ? '+' : '';
-      glEl.textContent = `${sign}${money(primary, gl)} (${sign}${glPct.toFixed(1)}%)`;
-      glEl.className = 'dash-gainloss ' + (gl >= 0 ? 'positive' : 'negative');
+      const cls = gl >= 0 ? 'positive' : 'negative';
+      glHtml = ` <span class="holdings-gainloss ${cls}">${sign}${glPct.toFixed(1)}%</span>`;
     }
+    $('holdingsMain').innerHTML = `${grams}g owned · ${value}${glHtml}`;
   } else {
-    if (valueWrap) valueWrap.style.display = 'none';
+    if (holdingsLine) holdingsLine.style.display = 'none';
     if (emptyState) emptyState.style.display = '';
   }
 
+  renderGoalNudge();
+}
+
+/** Top Goal moved off Home entirely (Homepage review) — a goal you're 12%
+ *  toward isn't a daily decision input. What's left is a one-line nudge,
+ *  and only when it's actually timely: below GOAL_NUDGE_THRESHOLD_PCT, this
+ *  renders nothing rather than a permanent section every single day
+ *  regardless of relevance. Full goal management lives in Portfolio. */
+const GOAL_NUDGE_THRESHOLD_PCT = 75;
+
+function renderGoalNudge() {
+  const el = $('goalNudge');
+  if (!el) return;
   const goals = getGoals();
-  const goalMini = $('dashGoalMini');
-  if (!goals.length) {
-    goalMini.innerHTML = `<span class="subnote">No goals set yet — add one below.</span>`;
-  } else {
-    const withProgress = goals.map(g => ({ g, progress: computeGoalProgress(g) }));
-    withProgress.sort((a, b) => b.progress.pct - a.progress.pct);
-    const top = withProgress[0];
-    goalMini.innerHTML = `
-      <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-        <span>${top.g.name}</span><span>${top.progress.pct.toFixed(0)}%</span>
-      </div>
-      <div class="progress-wrap"><div class="progress-bar" style="width:${top.progress.pct}%;"></div></div>
-    `;
-  }
+  if (!goals.length) { el.style.display = 'none'; return; }
+
+  const top = goals
+    .map(g => ({ g, progress: computeGoalProgress(g) }))
+    .sort((a, b) => b.progress.pct - a.progress.pct)[0];
+
+  if (top.progress.pct < GOAL_NUDGE_THRESHOLD_PCT) { el.style.display = 'none'; return; }
+
+  el.style.display = '';
+  el.innerHTML = `<span>${top.progress.pct.toFixed(0)}% to your "${top.g.name}" goal</span><a class="link-btn" onclick="goToTab('portfolio')">View →</a>`;
 }
 
 /** Home's structural spot/retail/jeweller distinction (Increment 2 trust fix) —
@@ -1501,11 +1507,6 @@ function renderComparison() {
     ? 'Roughly the same in both markets right now'
     : (diffPct > 0 ? `Saudi is ~${diffPct.toFixed(1)}% cheaper right now` : `India is ~${Math.abs(diffPct).toFixed(1)}% cheaper right now`);
 
-  const mini = $('dashCmpMini');
-  if (mini) {
-    mini.textContent = Math.abs(diffPct) < 0.5 ? 'Same' : (diffPct > 0 ? `Saudi −${diffPct.toFixed(1)}%` : `India −${Math.abs(diffPct).toFixed(1)}%`);
-  }
-
   const teaser = $('cmpTeaserText');
   if (teaser) {
     teaser.textContent = Math.abs(diffPct) < 0.5
@@ -1920,6 +1921,13 @@ function applyPersonaOrder() {
     const el = $(id);
     if (el) el.style.order = orderMap[id];
   });
+  renderLandedCost();
+
+  // Homepage review, P2: trend-watching is more central to how the
+  // Investor persona uses the app, so default that accordion open for them
+  // — everyone else still gets it collapsed, same as the reference sections.
+  const trendDetails = $('priceTrendDetails');
+  if (trendDetails) trendDetails.open = (getPersona() === 'investor');
 }
 
 function openPersonaOnboarding() {
@@ -1966,8 +1974,40 @@ function saveTrip(trip) {
 function renderLandedCost() {
   const trip = getTrip();
   const homeBody = $('landedCostHomeBody');
+  const homeCard = $('landedCostCard');
   const portfolioBody = $('landedCostBody');
   if (!homeBody || !portfolioBody) return;
+
+  // Portfolio always gets the full detail — it's a deliberate destination,
+  // not something competing for space on Home.
+  if (!trip || !trip.allowanceGrams) {
+    portfolioBody.innerHTML = `<div class="subnote">No trip set up yet — tap Edit to add your allowance and what you're bringing.</div>`;
+  } else {
+    const pctP = Math.min(100, (trip.gramsBrought / trip.allowanceGrams) * 100);
+    const remainingP = Math.max(0, trip.allowanceGrams - trip.gramsBrought);
+    portfolioBody.innerHTML = `
+      <div class="landed-progress-label"><span>Allowance used</span><span>${fmt(trip.gramsBrought)}g of ${fmt(trip.allowanceGrams)}g</span></div>
+      <div class="progress-wrap"><div class="progress-bar" style="width:${pctP}%;"></div></div>
+      <div class="subnote" style="margin-top:8px;">${remainingP > 0 ? `${fmt(remainingP)}g of allowance remaining.` : 'Allowance fully used — anything more may attract customs duty.'}</div>
+    `;
+  }
+
+  /* Home (Homepage review — P0): a full Landed Cost card made sense when
+     every persona saw it at equal weight, but a Buyer or Investor persona
+     may never touch it. Non-NRI personas get a single, quiet line instead
+     of a full card; only the NRI persona sees the real thing. */
+  const isNri = getPersona() === 'nri';
+  if (homeCard) homeCard.classList.toggle('compact', !isNri);
+
+  if (!isNri) {
+    homeBody.innerHTML = `
+      <div class="row" style="border-bottom:none; padding:2px 0;">
+        <span style="font-size:13px; color:var(--muted);">Bringing gold home?</span>
+        <a class="link-btn" onclick="goToTab('portfolio')">Track allowance →</a>
+      </div>
+    `;
+    return;
+  }
 
   if (!trip || !trip.allowanceGrams) {
     homeBody.innerHTML = `
@@ -1977,19 +2017,17 @@ function renderLandedCost() {
       </div>
     `;
     $('landedCostHomeCta').addEventListener('click', openLandedCostFromHome);
-    portfolioBody.innerHTML = `<div class="subnote">No trip set up yet — tap Edit to add your allowance and what you're bringing.</div>`;
     return;
   }
 
   const pct = Math.min(100, (trip.gramsBrought / trip.allowanceGrams) * 100);
   const remaining = Math.max(0, trip.allowanceGrams - trip.gramsBrought);
-  const summaryHtml = `
+  homeBody.innerHTML = `
+    <div class="dash-label" style="margin-bottom:8px;">Landed cost (NRI)</div>
     <div class="landed-progress-label"><span>Allowance used</span><span>${fmt(trip.gramsBrought)}g of ${fmt(trip.allowanceGrams)}g</span></div>
     <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%;"></div></div>
     <div class="subnote" style="margin-top:8px;">${remaining > 0 ? `${fmt(remaining)}g of allowance remaining.` : 'Allowance fully used — anything more may attract customs duty.'}</div>
   `;
-  homeBody.innerHTML = `<div class="dash-label" style="margin-bottom:8px;">Landed cost (NRI)</div>` + summaryHtml;
-  portfolioBody.innerHTML = summaryHtml;
 }
 
 function openLandedCostForm() {
@@ -2084,7 +2122,6 @@ function loadSettingsIntoForm() {
   wirePersonaOnboarding();
   wireLandedCostForm();
   applyPersonaOrder();
-  renderLandedCost();
   updateAlertsBadge();
 
   if (lastResult) renderAll();
