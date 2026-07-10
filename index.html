@@ -32,9 +32,16 @@
 
     <div class="card-stack" id="homeCardStack">
 
-      <div class="buy-signal-card" id="buySignalCard" style="display:none;">
-        <div class="buy-signal-label" id="buySignalLabel">--</div>
-        <div class="buy-signal-reason" id="buySignalReason"></div>
+      <div class="price-context-card" id="priceContextCard" style="display:none;">
+        <div class="price-context-label" id="priceContextLabel">--</div>
+        <div class="price-context-numbers" id="priceContextNumbers"></div>
+        <div class="price-context-chips" id="priceContextChips"></div>
+        <div class="price-context-confidence" id="priceContextConfidence"></div>
+        <div class="price-context-track" id="priceContextTrack" style="display:none;"></div>
+        <details>
+          <summary>How this is read ▾</summary>
+          <p class="subnote">A statistical comparison of today's spot price to its own recent trailing averages — not a prediction, and not AI-generated. Thresholds adjust to how volatile gold has actually been recently, so the same size move reads differently in a calm month than a wild one.</p>
+        </details>
       </div>
 
       <div class="section cmp-teaser" id="cmpTeaserSection">
@@ -472,7 +479,7 @@
       Background checks run on an in-page timer — reliable while this tab/app is open or backgrounded normally,
       but very aggressive OEM battery managers (some Xiaomi/Oppo/Vivo builds) can delay it unless you allow
       unrestricted battery usage for this app/browser.
-      <br><br>Gold Tracker · v1.6 (Increment 6)
+      <br><br>Gold Tracker · v1.7 (Increment 7)
     </div>
 
   </div>

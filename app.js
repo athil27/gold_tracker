@@ -403,54 +403,217 @@ function getMergedHistory() {
 }
 
 /* ----------------------------------------------------------------------------
-   BUY SIGNAL (Increment 3 — Home, above the portfolio-value teaser)
-   Purely derived from the same price-history array the sparkline already
-   uses — no new data source, no chart, just a plain-language read on today's
-   spot vs. its 7-day and 30-day trailing averages.
+   PRICE CONTEXT (Increment 7 — replaces the old flat-threshold Buy Signal)
+
+   Deliberately reframed per the trust review: not "AI," not a prediction —
+   a statistical read on where today sits relative to its own recent
+   history, with volatility-adjusted thresholds instead of fixed
+   percentages, confidence tied to real data coverage, and a track record
+   that only shows itself when there's an honest sample size behind it.
 ---------------------------------------------------------------------------- */
 
-function computeBuySignal() {
-  if (!lastResult) return null;
-  const hist = getMergedHistory();
-  const avg7 = rollingAverage(hist, 7);
-  const avg30 = rollingAverage(hist, 30);
-  if (!avg7 || !avg30) return null;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-  const cur = lastResult.usdPerOz;
-  // Positive = today is BELOW that average (a dip); negative = above it.
-  const pctVs30 = ((avg30 - cur) / avg30) * 100;
-  const pctVs7 = ((avg7 - cur) / avg7) * 100;
-
-  // The % gap is currency/premium-agnostic (same ratio applies to every
-  // karat and currency), so 22K is used here purely as a familiar reference
-  // point in the reason text, not as the basis of the calculation.
-  const refKarat = '22K';
-
-  if (pctVs30 > 3) {
-    return { key: 'good_window', label: 'Good buy window', cls: 'good',
-      reason: `${refKarat} is ${pctVs30.toFixed(1)}% below its 30-day average.` };
+function dailyChanges(points) {
+  const changes = [];
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1].usd, cur = points[i].usd;
+    if (prev) changes.push((cur - prev) / prev * 100);
   }
-  if (pctVs7 > 1.5) {
-    return { key: 'good_dip', label: 'Good dip', cls: 'good',
-      reason: `${refKarat} is ${pctVs7.toFixed(1)}% below its 7-day average.` };
-  }
-  if (pctVs30 < -2) {
-    return { key: 'wait', label: 'Wait', cls: 'bad',
-      reason: `${refKarat} is ${Math.abs(pctVs30).toFixed(1)}% above its 30-day average.` };
-  }
-  return { key: 'neutral', label: 'Neutral', cls: 'neutral',
-    reason: `${refKarat} is within ±1.5% of its recent 7- and 30-day averages.` };
+  return changes;
 }
 
-function renderBuySignal() {
-  const card = $('buySignalCard');
+function stddev(arr) {
+  if (arr.length < 2) return null;
+  const mean = arr.reduce((s, x) => s + x, 0) / arr.length;
+  const variance = arr.reduce((s, x) => s + (x - mean) ** 2, 0) / arr.length;
+  return Math.sqrt(variance);
+}
+
+function windowPoints(hist, endT, days) {
+  const start = endT - days * DAY_MS;
+  return hist.filter(p => p.t >= start && p.t < endT);
+}
+
+/** Positive deltaPct = today is BELOW that window's average (a dip).
+ *  z scales that gap by the window's own recent volatility, so the same
+ *  raw % move reads as "notable" in a calm month and "typical" in a wild
+ *  one, instead of one fixed cutoff for both. Falls back to null (not a
+ *  guess) when there isn't enough data to compute volatility honestly. */
+function zScoreFor(hist, endT, days, currentUsd) {
+  const win = windowPoints(hist, endT, days);
+  if (win.length < 3) return null;
+  const avg = win.reduce((s, p) => s + p.usd, 0) / win.length;
+  const sd = stddev(dailyChanges(win));
+  const deltaPct = ((avg - currentUsd) / avg) * 100;
+  return { avg, deltaPct, z: (sd && sd > 0) ? deltaPct / sd : null, coverage: win.length };
+}
+
+function bandFromZ(z, deltaPct) {
+  // Falls back to flat % thresholds only when volatility genuinely can't be
+  // computed (too little data) — not the primary path, a safety net.
+  if (z == null) {
+    if (deltaPct > 3) return 'notably_below';
+    if (deltaPct > 1.5) return 'mildly_below';
+    if (deltaPct < -2) return 'notably_above';
+    if (deltaPct < -1) return 'mildly_above';
+    return 'typical';
+  }
+  if (z > 1.5) return 'notably_below';
+  if (z > 0.5) return 'mildly_below';
+  if (z < -1.5) return 'notably_above';
+  if (z < -0.5) return 'mildly_above';
+  return 'typical';
+}
+
+const BAND_META = {
+  notably_below: { label: 'Notably below recent range', cls: 'good' },
+  mildly_below:  { label: 'Mildly below recent range',  cls: 'good' },
+  typical:       { label: 'Typical range',               cls: 'neutral' },
+  mildly_above:  { label: 'Mildly above recent range',   cls: 'bad' },
+  notably_above: { label: 'Notably above recent range',  cls: 'bad' },
+  mixed:         { label: 'Mixed',                        cls: 'neutral' }
+};
+const BAND_ORDER = ['notably_below', 'mildly_below', 'typical', 'mildly_above', 'notably_above'];
+
+/** Confluence, not a single cherry-picked horizon: if the 7-day and 30-day
+ *  reads agree on direction, that agreement is the (stronger) label. If
+ *  they disagree — a sharp short-term dip inside a longer uptrend, say —
+ *  the honest output is "Mixed," stated plainly, not forced into one side. */
+function combineHorizons(b7, b30) {
+  if (!b7 || !b30) return b30 || b7 || 'typical';
+  const i7 = BAND_ORDER.indexOf(b7), i30 = BAND_ORDER.indexOf(b30);
+  const sameSide = (i7 <= 1 && i30 <= 1) || (i7 >= 3 && i30 >= 3) || (i7 === 2 && i30 === 2);
+  if (!sameSide) return 'mixed';
+  return Math.abs(i7 - 2) > Math.abs(i30 - 2) ? b7 : b30;
+}
+
+/** Confidence is earned from real data coverage and freshness, not asserted.
+ *  A read built on 90 real backfilled days is trustworthy in a way a read
+ *  built on 4 days of local-only history isn't, even if the arithmetic is
+ *  identical — this is what actually distinguishes the two. */
+function computePriceContextConfidence(hist) {
+  const daysOfData = windowPoints(hist, Date.now(), 30).length;
+  const cache = Settings.getJSON('trendCache', null);
+  const hasBackfill = !!(cache && cache.points && cache.points.length);
+  let tier = 'low';
+  if (hasBackfill && daysOfData >= 20) tier = 'high';
+  else if (daysOfData >= 7) tier = 'medium';
+  return { tier, daysOfData, hasBackfill };
+}
+
+/** Only renders a number when there's an honest sample behind it. Scans
+ *  every point in history that has enough trailing data to classify AND
+ *  enough future data to check the outcome; keeps only points that landed
+ *  in the same band as today; reports how many were higher 7 days later.
+ *  Below MIN_TRACK_RECORD_SAMPLE, this deliberately returns null — a
+ *  missing number is more honest than a percentage built on 2 or 3
+ *  instances dressed up as evidence. */
+const MIN_TRACK_RECORD_SAMPLE = 5;
+
+function computeTrackRecord(hist, currentBand) {
+  if (currentBand === 'typical' || currentBand === 'mixed') return null;
+  const outcomes = [];
+  for (let i = 0; i < hist.length; i++) {
+    const d = hist[i];
+    const z = zScoreFor(hist, d.t, 30, d.usd);
+    if (!z) continue;
+    if (bandFromZ(z.z, z.deltaPct) !== currentBand) continue;
+    const future = hist.find(p => p.t >= d.t + 7 * DAY_MS);
+    if (!future) continue;
+    outcomes.push(future.usd > d.usd);
+  }
+  if (outcomes.length < MIN_TRACK_RECORD_SAMPLE) return null;
+  const higherCount = outcomes.filter(Boolean).length;
+  const historyDays = hist.length > 1 ? Math.round((hist[hist.length - 1].t - hist[0].t) / DAY_MS) : 0;
+  return { sampleSize: outcomes.length, higherPct: Math.round((higherCount / outcomes.length) * 100), historyDays };
+}
+
+function computePriceContext() {
+  if (!lastResult) return null;
+  const hist = getMergedHistory();
+  const now = Date.now();
+  const currentUsd = lastResult.usdPerOz;
+
+  const z7 = zScoreFor(hist, now, 7, currentUsd);
+  const z30 = zScoreFor(hist, now, 30, currentUsd);
+  const z90 = zScoreFor(hist, now, 90, currentUsd);
+  if (!z7 && !z30) return null;
+
+  const b7 = z7 ? bandFromZ(z7.z, z7.deltaPct) : null;
+  const b30 = z30 ? bandFromZ(z30.z, z30.deltaPct) : null;
+  const band = combineHorizons(b7, b30);
+  const confidence = computePriceContextConfidence(hist);
+  const trackRecord = confidence.tier !== 'low' ? computeTrackRecord(hist, band) : null;
+
+  return {
+    band, meta: BAND_META[band],
+    today: currentUsd,
+    delta7: z7 ? z7.deltaPct : null, avg7: z7 ? z7.avg : null,
+    delta30: z30 ? z30.deltaPct : null, avg30: z30 ? z30.avg : null,
+    delta90: z90 ? z90.deltaPct : null, avg90: z90 ? z90.avg : null,
+    confidence, trackRecord,
+    freshnessMin: Math.round((now - lastResult.timestamp) / 60000)
+  };
+}
+
+/** Converts a USD/troy-oz figure (today's price or a trailing average) into
+ *  a per-gram price in the given currency, using TODAY's FX rate and
+ *  premium for the whole conversion — the app doesn't have historical FX
+ *  or premium data, so this is a consistent "at today's rate" translation,
+ *  same honesty convention already used by the India-vs-Saudi comparison. */
+function usdOzToGram(usdPerOz, currencyCode, karat, withPremium) {
+  if (!lastResult || !lastResult.prices[currencyCode]) return null;
+  const rate = lastResult.prices[currencyCode].rate;
+  const usdK = (usdPerOz / GRAMS_PER_OZ) * purityRatio(karat);
+  const base = usdK * rate;
+  return withPremium ? base * (1 + getPremiumPctFor(currencyCode) / 100) : base;
+}
+
+function fmtDelta(pct) {
+  if (pct == null) return '—';
+  // deltaPct is "how far below average" (positive = below). Flip the sign here
+  // so the chip reads like an ordinary price-vs-average display: below avg
+  // shows as "−", above avg shows as "+".
+  const sign = pct >= 0 ? '−' : '+';
+  return `${sign}${Math.abs(pct).toFixed(1)}%`;
+}
+
+function renderPriceContext() {
+  const card = $('priceContextCard');
   if (!card) return;
-  const signal = computeBuySignal();
-  if (!signal) { card.style.display = 'none'; return; }
+  const ctx = computePriceContext();
+  if (!ctx) { card.style.display = 'none'; return; }
   card.style.display = '';
-  card.className = 'buy-signal-card ' + signal.cls;
-  $('buySignalLabel').textContent = signal.label;
-  $('buySignalReason').textContent = signal.reason;
+  card.className = 'price-context-card ' + ctx.meta.cls;
+
+  $('priceContextLabel').textContent = ctx.meta.label;
+
+  const primary = getPrimaryCurrency();
+  const todayGram = usdOzToGram(ctx.today, primary, 22, false);
+  const avg30Gram = ctx.avg30 != null ? usdOzToGram(ctx.avg30, primary, 22, false) : null;
+  $('priceContextNumbers').textContent = todayGram != null && avg30Gram != null
+    ? `Spot ≈ ${money(primary, todayGram)}/g (22K) · 30-day avg ≈ ${money(primary, avg30Gram)}/g`
+    : `Spot: $${ctx.today.toFixed(0)}/oz`;
+
+  const chips = $('priceContextChips');
+  chips.innerHTML = [
+    ctx.delta7 != null ? `<span class="reason-chip">7d: ${fmtDelta(ctx.delta7)}</span>` : '',
+    ctx.delta30 != null ? `<span class="reason-chip">30d: ${fmtDelta(ctx.delta30)}</span>` : '',
+    ctx.delta90 != null ? `<span class="reason-chip">90d: ${fmtDelta(ctx.delta90)}</span>` : ''
+  ].join('');
+
+  const confMeta = { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' };
+  $('priceContextConfidence').textContent =
+    `${confMeta[ctx.confidence.tier]} · ${ctx.confidence.daysOfData} days of data · Updated ${ctx.freshnessMin}m ago`;
+
+  const trackEl = $('priceContextTrack');
+  if (ctx.trackRecord) {
+    trackEl.style.display = '';
+    trackEl.textContent = `Of the last ${ctx.trackRecord.historyDays} days, spot read this way on ${ctx.trackRecord.sampleSize} other occasions — price was higher a week later in ${ctx.trackRecord.higherPct}% of those.`;
+  } else {
+    trackEl.style.display = 'none';
+  }
 }
 
 function setStatus(state, text) {
@@ -737,7 +900,7 @@ function evaluateAlerts(snapshot) {
 
 function renderAll() {
   renderDashboard();
-  renderBuySignal();
+  renderPriceContext();
   renderPriceCards();
   renderCurrencyChips();
   renderKaratChips();
@@ -1742,9 +1905,9 @@ function wireEmptyStates() {
 ---------------------------------------------------------------------------- */
 
 const PERSONA_ORDER = {
-  buyer:    { buySignalCard: 0, cmpTeaserSection: 1, portfolioBlock: 2, landedCostCard: 3 },
-  investor: { buySignalCard: 0, portfolioBlock: 1, cmpTeaserSection: 2, landedCostCard: 3 },
-  nri:      { cmpTeaserSection: 0, landedCostCard: 1, buySignalCard: 2, portfolioBlock: 3 }
+  buyer:    { priceContextCard: 0, cmpTeaserSection: 1, portfolioBlock: 2, landedCostCard: 3 },
+  investor: { priceContextCard: 0, portfolioBlock: 1, cmpTeaserSection: 2, landedCostCard: 3 },
+  nri:      { cmpTeaserSection: 0, landedCostCard: 1, priceContextCard: 2, portfolioBlock: 3 }
 };
 
 function getPersona() {
@@ -1931,10 +2094,10 @@ function loadSettingsIntoForm() {
 
   // Trend backfill (Increment 5) — fire-and-forget, cached for 24h. Runs
   // after the first render so the app is usable immediately; once it
-  // resolves, re-render the views that read merged history so the "authentic"
-  // 90-day trend/Buy Signal appear without waiting for a reload.
+  // resolves, re-render the views that read merged history so the
+  // authentic 90-day trend/Price Context appear without waiting for a reload.
   fetchTrendBackfill().then(() => {
     renderTrend(getMergedHistory());
-    renderBuySignal();
+    renderPriceContext();
   });
 })();
