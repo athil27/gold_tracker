@@ -582,11 +582,25 @@ function fmtDelta(pct) {
 function renderPriceContext() {
   const card = $('priceContextCard');
   if (!card) return;
+  const personaClass = getPersona() === 'investor' ? ' detail-forward' : '';
   const ctx = computePriceContext();
-  if (!ctx) { card.style.display = 'none'; return; }
-  card.style.display = '';
-  card.className = 'price-context-card ' + ctx.meta.cls;
 
+  if (!ctx) {
+    // Always visible with a calm, honest state instead of display:none —
+    // matches the comparison teaser's always-visible loading pattern, so
+    // the two don't pop in at different times on a cold load. Genuinely
+    // "not enough history yet" gets the same message as "still loading" —
+    // both are honest, and neither overclaims a signal that isn't there.
+    card.className = 'price-context-card neutral' + personaClass;
+    $('priceContextLabel').textContent = lastResult ? 'Building price context' : "Reading today's price context…";
+    $('priceContextNumbers').textContent = lastResult ? 'Still gathering enough history for a confident read.' : '';
+    $('priceContextChips').innerHTML = '';
+    $('priceContextConfidence').textContent = '';
+    $('priceContextTrack').style.display = 'none';
+    return;
+  }
+
+  card.className = 'price-context-card ' + ctx.meta.cls + personaClass;
   $('priceContextLabel').textContent = ctx.meta.label;
 
   const primary = getPrimaryCurrency();
@@ -905,6 +919,7 @@ function renderAll() {
   renderCurrencyChips();
   renderKaratChips();
   renderPortfolio();
+  renderPortfolioSummaryLine();
   renderGoals();
   renderPurchases();
   renderAlerts();
@@ -917,6 +932,27 @@ function renderAll() {
 
 /* ---------- DASHBOARD ---------- */
 
+/** Shared by Home's compact holdings line and Portfolio's top summary line
+ *  (Product review, P2 — Portfolio needed the same "get oriented in one
+ *  line" treatment Home already had). Returns null when there's nothing to
+ *  show yet, so each caller can fall back to its own empty state. */
+function holdingsSummaryHtml(primary) {
+  const headline = computePortfolioHeadline(primary);
+  if (headline.totalInvested <= 0) return null;
+
+  const grams = fmt(totalGramsOwned());
+  const value = headline.totalCurrentValue !== null ? money(primary, headline.totalCurrentValue) : '--';
+  const gl = headline.gainLoss;
+  const glPct = headline.gainLossPct;
+  let glHtml = '';
+  if (gl !== null) {
+    const sign = gl >= 0 ? '+' : '';
+    const cls = gl >= 0 ? 'positive' : 'negative';
+    glHtml = ` <span class="holdings-gainloss ${cls}">${sign}${glPct.toFixed(1)}%</span>`;
+  }
+  return `${grams}g owned · ${value}${glHtml}`;
+}
+
 function renderDashboard() {
   const primary = getPrimaryCurrency();
 
@@ -928,31 +964,35 @@ function renderDashboard() {
   const p = lastResult.prices[primary];
   renderPriceTierRow(primary, p);
 
-  const headline = computePortfolioHeadline(primary);
   const holdingsLine = $('holdingsLine');
   const emptyState = $('dashEmptyState');
+  const summary = holdingsSummaryHtml(primary);
 
-  if (headline.totalInvested > 0) {
+  if (summary) {
     if (holdingsLine) holdingsLine.style.display = '';
     if (emptyState) emptyState.style.display = 'none';
-
-    const grams = fmt(totalGramsOwned());
-    const value = headline.totalCurrentValue !== null ? money(primary, headline.totalCurrentValue) : '--';
-    const gl = headline.gainLoss;
-    const glPct = headline.gainLossPct;
-    let glHtml = '';
-    if (gl !== null) {
-      const sign = gl >= 0 ? '+' : '';
-      const cls = gl >= 0 ? 'positive' : 'negative';
-      glHtml = ` <span class="holdings-gainloss ${cls}">${sign}${glPct.toFixed(1)}%</span>`;
-    }
-    $('holdingsMain').innerHTML = `${grams}g owned · ${value}${glHtml}`;
+    $('holdingsMain').innerHTML = summary;
   } else {
     if (holdingsLine) holdingsLine.style.display = 'none';
     if (emptyState) emptyState.style.display = '';
   }
 
   renderGoalNudge();
+}
+
+/** Portfolio tab top summary line (Product review, P2) — one line to get
+ *  oriented before scrolling past six sections, same pattern as Home's
+ *  holdings line. Hidden entirely rather than shown empty when there's
+ *  nothing logged yet — Portfolio summary's own empty state below already
+ *  covers that message. */
+function renderPortfolioSummaryLine() {
+  const el = $('portfolioSummaryLine');
+  if (!el) return;
+  const primary = getPrimaryCurrency();
+  const summary = lastResult ? holdingsSummaryHtml(primary) : null;
+  if (!summary) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  $('portfolioSummaryMain').innerHTML = summary;
 }
 
 /** Top Goal moved off Home entirely (Homepage review) — a goal you're 12%
@@ -1922,12 +1962,21 @@ function applyPersonaOrder() {
     if (el) el.style.order = orderMap[id];
   });
   renderLandedCost();
+  renderPriceContext();
 
   // Homepage review, P2: trend-watching is more central to how the
   // Investor persona uses the app, so default that accordion open for them
   // — everyone else still gets it collapsed, same as the reference sections.
   const trendDetails = $('priceTrendDetails');
   if (trendDetails) trendDetails.open = (getPersona() === 'investor');
+
+  // Product review, P1: the Buyer persona is the most likely to open the
+  // app rarely with high intent ("should I buy today"), so the one thing
+  // this persona most needs isn't the label, it's the reasoning behind
+  // it — default that disclosure open. Every other persona still gets it
+  // closed, same as before.
+  const disclosure = $('priceContextDisclosure');
+  if (disclosure) disclosure.open = (getPersona() === 'buyer');
 }
 
 function openPersonaOnboarding() {
@@ -2003,7 +2052,7 @@ function renderLandedCost() {
     homeBody.innerHTML = `
       <div class="row" style="border-bottom:none; padding:2px 0;">
         <span style="font-size:13px; color:var(--muted);">Bringing gold home?</span>
-        <a class="link-btn" onclick="goToTab('portfolio')">Track allowance →</a>
+        <a class="link-btn" onclick="goToLandedCostSection()">Track allowance →</a>
       </div>
     `;
     return;
@@ -2046,8 +2095,24 @@ function toggleLandedCostForm() {
   if (isOpen) closeLandedCostForm(); else openLandedCostForm();
 }
 
-function openLandedCostFromHome() {
+/** Jumps to Portfolio and opens the (now collapsible — Product review, P0)
+ *  Landed Cost details, so the destination is actually visible rather than
+ *  landing on a closed accordion. */
+function goToLandedCostSection() {
   goToTab('portfolio');
+  const el = $('landedCostSection');
+  if (el) el.open = true;
+}
+
+/** Same reasoning for the full comparison, which is also now collapsible. */
+function goToComparisonSection() {
+  goToTab('portfolio');
+  const el = $('cmpFullSection');
+  if (el) el.open = true;
+}
+
+function openLandedCostFromHome() {
+  goToLandedCostSection();
   setTimeout(() => {
     openLandedCostForm();
     $('lcAllowance')?.focus();

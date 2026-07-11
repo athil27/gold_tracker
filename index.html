@@ -32,14 +32,14 @@
 
     <div class="card-stack" id="homeCardStack">
 
-      <div class="price-context-card" id="priceContextCard" style="display:none;">
-        <div class="price-context-label" id="priceContextLabel">--</div>
+      <div class="price-context-card" id="priceContextCard">
+        <div class="price-context-label" id="priceContextLabel">Reading today's price context…</div>
         <div class="price-context-numbers" id="priceContextNumbers"></div>
         <div class="price-context-chips" id="priceContextChips"></div>
         <div class="price-context-confidence" id="priceContextConfidence"></div>
         <div class="price-context-track" id="priceContextTrack" style="display:none;"></div>
-        <details>
-          <summary>How this is read ▾</summary>
+        <details id="priceContextDisclosure">
+          <summary>How the signal is computed — 7/30-day averages ▾</summary>
           <p class="subnote">A statistical comparison of today's spot price to its own recent trailing averages — not a prediction, and not AI-generated. Thresholds adjust to how volatile gold has actually been recently, so the same size move reads differently in a calm month than a wild one.</p>
         </details>
       </div>
@@ -47,10 +47,10 @@
       <div class="section cmp-teaser" id="cmpTeaserSection">
         <div class="row" style="border-bottom:none; padding:2px 0;">
           <span id="cmpTeaserText" style="font-size:13px;">Loading India vs Saudi comparison...</span>
-          <a class="link-btn" onclick="goToTab('portfolio')">Full detail →</a>
+          <a class="link-btn" onclick="goToComparisonSection()">Full detail →</a>
         </div>
         <details>
-          <summary>How we calculate this ▾</summary>
+          <summary>How the comparison is computed — premiums + FX ▾</summary>
           <p class="subnote" id="trustMethodologyText">Spot price plus each country's typical premium, converted at today's exchange rate.</p>
         </details>
       </div>
@@ -63,7 +63,7 @@
         <div class="section" id="dashboardSection">
           <div id="priceTierRow" style="margin-bottom:14px;"></div>
           <div class="holdings-line" id="holdingsLine">
-            <span id="holdingsMain">--</span>
+            <span id="holdingsMain">Loading your holdings…</span>
             <a class="link-btn" onclick="goToTab('portfolio')">Portfolio →</a>
           </div>
           <div class="empty-state empty-state-inline" id="dashEmptyState" style="display:none;">
@@ -125,10 +125,14 @@
   <!-- =========================================================== -->
   <div class="tab-panel" id="tab-portfolio" style="display:none;">
 
-    <div class="section">
-      <h2>Allocation by karat</h2>
-      <div id="allocationBar"></div>
+    <div class="holdings-line" id="portfolioSummaryLine" style="margin-bottom:16px; display:none;">
+      <span id="portfolioSummaryMain">--</span>
     </div>
+
+    <details class="section-details">
+      <summary>Allocation by karat ▾</summary>
+      <div id="allocationBar" style="margin-top:12px;"></div>
+    </details>
 
     <div class="section">
       <h2>Portfolio summary</h2>
@@ -136,21 +140,23 @@
       <div class="subnote" style="margin-top:10px;">Current value uses today's local-market (premium) price, not jeweller-inclusive — resale typically doesn't recover making charges, so this is a more realistic valuation.</div>
     </div>
 
-    <div class="section">
-      <h2>India vs Saudi — full comparison</h2>
-      <div class="cmp-row"><span>India retail (22K/g)</span><span class="cmp-val" id="cmpIndia">--</span></div>
+    <details class="section-details" id="cmpFullSection">
+      <summary>India vs Saudi — full comparison ▾</summary>
+      <div class="cmp-row" style="margin-top:8px;"><span>India retail (22K/g)</span><span class="cmp-val" id="cmpIndia">--</span></div>
       <div class="cmp-row"><span>Saudi retail, converted to ₹ (22K/g)</span><span class="cmp-val" id="cmpSaudi">--</span></div>
       <div class="cmp-row"><span id="cmpResult">--</span><span></span></div>
       <div class="subnote">Uses today's exchange rate only — doesn't account for your actual remittance rate or transfer fees.</div>
-    </div>
+    </details>
 
-    <div class="section" id="landedCostSection">
-      <div class="section-header-row">
-        <h2>Landed cost (NRI)</h2>
+    <details class="section-details" id="landedCostSection">
+      <summary>Landed cost (NRI) ▾</summary>
+      <div class="section-header-row" style="margin-top:12px;">
+        <span class="dash-label">Trip status</span>
         <button class="chip-toggle" id="toggleLandedCostForm">Edit</button>
       </div>
       <div id="landedCostBody"></div>
       <div id="landedCostFormWrap" style="display:none; margin-top:12px;">
+        <div class="subnote" id="landedCostSourceHint" style="margin-bottom:10px; cursor:pointer;" onclick="goToTab('more')">Not sure what your allowance is? Check current limits in Reference (More) →</div>
         <div class="form-grid">
           <div>
             <label>Duty-free allowance (grams)</label>
@@ -164,7 +170,7 @@
         <button class="btn" id="saveLandedCostBtn" style="width:100%;">Save trip</button>
         <div class="subnote" style="margin-top:8px;">Allowance varies by traveller and changes with each Union Budget — check Reference in More before relying on this for customs.</div>
       </div>
-    </div>
+    </details>
 
     <div class="section">
       <div class="section-header-row">
@@ -460,7 +466,7 @@
       Background checks run on an in-page timer — reliable while this tab/app is open or backgrounded normally,
       but very aggressive OEM battery managers (some Xiaomi/Oppo/Vivo builds) can delay it unless you allow
       unrestricted battery usage for this app/browser.
-      <br><br>Gold Tracker · v1.8 (Increment 8)
+      <br><br>Gold Tracker · v1.9 (Increment 9)
     </div>
 
   </div>

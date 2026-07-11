@@ -242,14 +242,24 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
 .price-context-card.good .price-context-label{ color:var(--green); }
 .price-context-card.bad .price-context-label{ color:var(--red); }
 .price-context-card.neutral .price-context-label{ color:var(--gold); }
-.price-context-numbers{ font-size:12px; color:var(--muted); margin-top:4px; line-height:1.4; font-variant-numeric:tabular-nums; }
-.price-context-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+/* Numbers are the primary evidence behind the label — one step down from
+   the label itself, brighter than the meta info below it (Product review:
+   "numbers primary, everything else secondary"). */
+.price-context-numbers{ font-size:13px; color:var(--text); margin-top:6px; line-height:1.4; font-variant-numeric:tabular-nums; }
+/* Chips + confidence form one secondary cluster, tightened together rather
+   than reading as two more full-width lines. */
+.price-context-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
 .reason-chip{ font-size:11px; color:var(--text); background:#000; border:1px solid var(--border); border-radius:10px; padding:3px 9px; font-variant-numeric:tabular-nums; }
-.price-context-confidence{ font-size:11px; color:var(--muted); margin-top:8px; }
-.price-context-track{ font-size:11px; color:var(--muted); margin-top:6px; line-height:1.5; padding-top:6px; border-top:1px solid var(--border); }
+.price-context-confidence{ font-size:11px; color:var(--muted); margin-top:6px; }
+/* Track record is the deepest tier — separated by a rule, easy to skip. */
+.price-context-track{ font-size:11px; color:var(--muted); margin-top:8px; line-height:1.5; padding-top:8px; border-top:1px solid var(--border); }
 .price-context-card details{ margin-top:10px; padding:8px 10px; }
 .price-context-card details summary{ font-size:12px; }
 .price-context-card details p{ margin:0; }
+/* Investor persona: un-mute the meta tier, since this persona is more
+   likely to actually read confidence/track-record than glance past them. */
+.price-context-card.detail-forward .price-context-confidence,
+.price-context-card.detail-forward .price-context-track{ color:var(--text); }
 
 /* ---------- India vs Saudi teaser (Home) — full detail lives in Portfolio ---------- */
 .cmp-teaser .row{ align-items:center; }
