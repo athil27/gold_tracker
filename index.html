@@ -97,20 +97,6 @@
       <div class="calc-result" id="calcResult">Enter a weight to see today's value</div>
     </details>
 
-    <details class="section-details">
-      <summary>All prices &amp; currencies ▾</summary>
-      <div class="grid" id="priceCardsGrid" style="margin-top:12px;"></div>
-      <div class="grid" style="margin-top:0;">
-        <div class="card full-card">
-          <div class="karat">Spot price</div>
-          <div class="currency-label">USD per troy ounce (XAU)</div>
-          <div class="amount" id="spotUsd">--</div>
-          <div class="unit" id="spotTopLine">--</div>
-        </div>
-      </div>
-      <button class="btn" style="width:100%;" onclick="fetchGoldPrice()">Check price now</button>
-    </details>
-
     <details class="section-details" id="priceTrendDetails">
       <summary>Price trend ▾</summary>
       <h2 style="margin-top:0;">Price trend <span class="badge dim" id="trendDays">--</span></h2>
@@ -454,6 +440,19 @@
         <summary>Spot vs retail vs jeweller price — what's the difference? ▾</summary>
         <p><strong>Spot</strong> is the international bullion trading price. <strong>Local retail estimate</strong> adds your country's typical import duty/GST/dealer margin on top. <strong>Jeweller estimate</strong> adds a typical making charge on top of that — closest to what you'd actually pay in a store, though individual jewellers vary.</p>
       </details>
+      <details>
+        <summary>All prices &amp; currencies — today's numbers ▾</summary>
+        <div class="grid" id="priceCardsGrid" style="margin-top:12px;"></div>
+        <div class="grid" style="margin-top:0;">
+          <div class="card full-card">
+            <div class="karat">Spot price</div>
+            <div class="currency-label">USD per troy ounce (XAU)</div>
+            <div class="amount" id="spotUsd">--</div>
+            <div class="unit" id="spotTopLine">--</div>
+          </div>
+        </div>
+        <button class="btn" style="width:100%;" onclick="fetchGoldPrice()">Check price now</button>
+      </details>
     </div>
 
     <div class="section">
@@ -466,7 +465,7 @@
       Background checks run on an in-page timer — reliable while this tab/app is open or backgrounded normally,
       but very aggressive OEM battery managers (some Xiaomi/Oppo/Vivo builds) can delay it unless you allow
       unrestricted battery usage for this app/browser.
-      <br><br>Gold Tracker · v1.11 (Increment 11)
+      <br><br>Gold Tracker · v1.12 (Increment 12)
     </div>
 
   </div>

@@ -1105,7 +1105,7 @@ function renderPriceCards() {
   const grid = $('priceCardsGrid');
 
   if (!selectedCurrencies.length || !selectedKarats.length) {
-    grid.innerHTML = `<div class="card full-card"><div class="subnote">Pick at least one currency and one karat in Settings below.</div></div>`;
+    grid.innerHTML = `<div class="card full-card"><div class="subnote">Pick at least one currency and one karat in Settings above.</div></div>`;
   } else {
     let html = '';
     selectedCurrencies.forEach(code => {
