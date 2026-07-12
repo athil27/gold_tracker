@@ -412,16 +412,36 @@ function collapseToOnePerDay(points) {
  *  per day afterward (see collapseToOnePerDay) so check frequency doesn't
  *  bias the statistics, and so this is as consistent as possible across
  *  devices without needing a backend to hold shared state. */
+/** Combines the (rarely-fetched, device-independent) backfill with the
+ *  (frequently-updated, per-device) local check-in history.
+ *
+ *  IMPORTANT — this precedence was wrong until now: the old version used
+ *  local history for every day from a device's *first-ever local check*
+ *  onward, and backfill only for days before that. That meant two devices
+ *  could disagree about which *source* represents the same calendar day —
+ *  a long-used device would source, say, "12 days ago" from its own local
+ *  reading, while a fresh device would source that same day from
+ *  gold-api.com's real daily high. Different lineage for the same day,
+ *  even after de-duplicating same-day points (Increment 10), meaning two
+ *  devices could still legitimately disagree.
+ *
+ *  Fixed: backfill is now authoritative for every day it covers, since
+ *  it's the same shared source on every device (modulo up to ~24h of
+ *  cache staleness). Local history only fills in the gap *newer* than the
+ *  most recent backfill point — typically just "today," or "today and
+ *  yesterday" if the backfill hasn't refreshed in a while. This is the
+ *  closest two independent, backend-free devices can get to agreeing on
+ *  history without a shared server computing it once for everyone. */
 function getMergedHistory() {
   const local = Settings.getJSON('history', []);
   const cache = Settings.getJSON('trendCache', null);
   const backfill = ((cache && cache.points) || []).map(p => ({ t: dateStrToMs(p.date), usd: p.usdPerOz }));
 
-  if (!local.length) return collapseToOnePerDay(backfill);
+  if (!backfill.length) return collapseToOnePerDay(local);
 
-  const earliestLocalT = Math.min(...local.map(p => p.t));
-  const olderBackfill = backfill.filter(p => p.t < earliestLocalT);
-  return collapseToOnePerDay([...olderBackfill, ...local]);
+  const latestBackfillT = Math.max(...backfill.map(p => p.t));
+  const newerLocal = local.filter(p => p.t > latestBackfillT);
+  return collapseToOnePerDay([...backfill, ...newerLocal]);
 }
 
 /* ----------------------------------------------------------------------------
