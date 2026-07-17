@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gold-tracker-v16';
+const CACHE_NAME = 'gold-tracker-v17';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -14,8 +14,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('gold-api.com') || event.request.url.includes('er-api.com')) {
-    return; // never cache live price/rate calls
+  if (event.request.url.includes('gold-api.com') || event.request.url.includes('er-api.com') ||
+      event.request.url.includes('workers.dev')) {
+    return; // never cache live price/rate/signal calls
   }
   // Network-first for the HTML/CSS/JS app shell, so updates show up without manual cache clearing.
   if (event.request.mode === 'navigate' || event.request.destination === 'document' ||

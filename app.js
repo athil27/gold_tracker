@@ -213,8 +213,21 @@ function getWeightGrams() {
 
 const GOLD_URL = 'https://api.gold-api.com/price/XAU';
 const FX_URL = 'https://open.er-api.com/v6/latest/USD';
+/** Increment 14 — price + signal now come from a Cloudflare Worker that
+ *  holds the gold-api.com key server-side and computes Price Context once
+ *  for every device, instead of each browser approximating its own from
+ *  local check-in history. GOLD_URL/FX_URL above are kept only as a
+ *  fallback for the raw price if the Worker is unreachable — see
+ *  fetchGoldPrice(). There's no client-side fallback for the *signal*
+ *  specifically: computing it locally again would silently reintroduce
+ *  the exact cross-device divergence this Worker exists to eliminate, so
+ *  "temporarily unavailable" is the honest state when the Worker can't be
+ *  reached, not a locally-approximated number. */
+const WORKER_URL = 'https://gold-tracker-api.athilapps.workers.dev';
 
 let lastResult = null;
+let lastSignal = null;
+let signalAttempted = false;
 
 function notify(title, body) {
   if (Settings.get('notif', '0') !== '1') return;
@@ -231,21 +244,38 @@ function notify(title, body) {
 async function fetchGoldPrice() {
   setStatus('', 'Fetching price...');
   try {
-    const goldRes = await fetch(GOLD_URL);
-    if (!goldRes.ok) throw new Error('gold-api error ' + goldRes.status);
-    const goldData = await goldRes.json();
-    const usdPerOz = goldData.price ?? goldData.rate ?? goldData.rates?.XAU ?? goldData.data?.price;
-    if (!usdPerOz) throw new Error('Unexpected gold price response shape');
+    let usdPerOz, fxRates;
 
-    const fxRes = await fetch(FX_URL);
-    if (!fxRes.ok) throw new Error('fx-api error ' + fxRes.status);
-    const fxData = await fxRes.json();
+    try {
+      const workerRes = await fetch(WORKER_URL + '/api/price');
+      if (!workerRes.ok) throw new Error('Worker price error ' + workerRes.status);
+      const workerData = await workerRes.json();
+      usdPerOz = workerData.usdPerOz;
+      fxRates = workerData.fx;
+      if (!usdPerOz) throw new Error('Unexpected Worker price response shape');
+    } catch (workerErr) {
+      // Worker unreachable — fall back to the direct calls this app used
+      // before Increment 14. This keeps the live price resilient even if
+      // the Worker has downtime; only the computed Price Context signal
+      // (see fetchSignal) has no equivalent fallback, deliberately.
+      console.error('Worker price fetch failed, falling back to direct APIs.', workerErr);
+      const goldRes = await fetch(GOLD_URL);
+      if (!goldRes.ok) throw new Error('gold-api error ' + goldRes.status);
+      const goldData = await goldRes.json();
+      usdPerOz = goldData.price ?? goldData.rate ?? goldData.rates?.XAU ?? goldData.data?.price;
+      if (!usdPerOz) throw new Error('Unexpected gold price response shape');
+
+      const fxRes = await fetch(FX_URL);
+      if (!fxRes.ok) throw new Error('fx-api error ' + fxRes.status);
+      const fxData = await fxRes.json();
+      fxRates = fxData.rates;
+    }
 
     const usd24 = usdPerOz / GRAMS_PER_OZ;
 
     const prices = {};
     CURRENCIES.forEach(c => {
-      const rate = fxData.rates[c.code];
+      const rate = fxRates[c.code];
       if (!rate) return;
       const premium = 1 + getPremiumPctFor(c.code) / 100;
       const spot = {}, prem = {};
@@ -265,12 +295,13 @@ async function fetchGoldPrice() {
 
     lastResult = result;
     Settings.set('last', result);
-    saveHistoryPoint(result);
     saveToLog(result);
     evaluateAlerts(result);
 
     renderAll();
     setStatus('live', 'Live');
+
+    fetchSignal();
     return result;
   } catch (err) {
     console.error(err);
@@ -280,6 +311,26 @@ async function fetchGoldPrice() {
   }
 }
 
+/** Increment 14 — the shared Price Context signal, fetched from the
+ *  Worker rather than computed locally. Fire-and-forget relative to
+ *  fetchGoldPrice(): the live price renders immediately either way, and
+ *  Price Context updates in place once this resolves. No client-side
+ *  fallback computation on failure — see the note on WORKER_URL above
+ *  for why that's deliberate, not an oversight. */
+async function fetchSignal() {
+  try {
+    const res = await fetch(WORKER_URL + '/api/signal');
+    if (!res.ok) throw new Error('Worker signal error ' + res.status);
+    lastSignal = await res.json();
+  } catch (err) {
+    console.error('Signal fetch failed — Price Context will show as unavailable.', err);
+    lastSignal = null;
+  }
+  signalAttempted = true;
+  renderPriceContext();
+  renderTrend(lastSignal ? lastSignal.history : []);
+}
+
 /** Current premium (local-market) price per gram for a given currency + any karat (18/21/22/24) */
 function currentPrice(currency, karat) {
   if (!lastResult || !lastResult.prices[currency]) return null;
@@ -287,15 +338,12 @@ function currentPrice(currency, karat) {
 }
 
 /* ----------------------------------------------------------------------------
-   HISTORY, LOG, STATUS / STALE-DATA TRACKING
+   LOG, STATUS / STALE-DATA TRACKING
+   (Local price-history accumulation — saveHistoryPoint(), rollingAverage() —
+   removed in Increment 14. The Worker now holds the canonical 90-day
+   history and computes rolling averages once, server-side; there's no
+   reason to also accumulate a per-device copy that nothing reads anymore.)
 ---------------------------------------------------------------------------- */
-
-function saveHistoryPoint(r) {
-  let hist = Settings.getJSON('history', []);
-  hist.push({ t: r.timestamp, usd: r.usdPerOz });
-  if (hist.length > 600) hist = hist.slice(hist.length - 600);
-  Settings.set('history', hist);
-}
 
 function saveToLog(r) {
   let log = Settings.getJSON('log', []);
@@ -304,300 +352,17 @@ function saveToLog(r) {
   Settings.set('log', log);
 }
 
-function rollingAverage(hist, days) {
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  const inWindow = hist.filter(p => p.t >= cutoff);
-  const use = inWindow.length >= 3 ? inWindow : hist;
-  if (!use.length) return null;
-  return use.reduce((sum, p) => sum + p.usd, 0) / use.length;
-}
-
 /* ----------------------------------------------------------------------------
-   TREND BACKFILL (Increment 5)
-   Authentic 90-day history from gold-api.com's /history endpoint (same
-   provider/domain the app already uses for the live price), merged with the
-   existing in-app check-in history rather than replacing it:
-     - gold-api.com fills in every day BEFORE your first in-app check —
-       so the trend/Buy Signal/drop_vs_avg alerts are meaningful from day
-       one, not after weeks of waiting for local history to accumulate.
-     - Your own in-app checks remain the live tail — today's price is
-       always whatever you actually last saw, not a cached daily close.
-   Cached for 24h (`goldtracker_trendCache`) so this is at most one API
-   call per day per browser — the free tier is 10 requests/hour, and daily
-   caching keeps real-world usage nowhere near that even shared across a
-   handful of people using the app. If the fetch fails for any reason
-   (network, key, rate limit), everything silently falls back to
-   in-app-only history, same as before this increment.
+   PRICE CONTEXT — computed server-side as of Increment 14
+   The trend backfill (Increment 5), the cross-device precedence fixes
+   (Increments 10-11), and the full z-score/confidence/track-record engine
+   (Increment 7) all used to live here. They now live in the Cloudflare
+   Worker (see /worker/worker.js) as a direct, verified port of this same
+   math — computed once, shared by every device, instead of each browser
+   approximating its own answer from local check-in history. See
+   fetchSignal() near fetchGoldPrice() for how the client consumes it.
 ---------------------------------------------------------------------------- */
 
-const GOLD_API_KEY = '4715ac8a399df3cf41608ca2590818f5ab5fa10393456164c540e1acb4b8e00e';
-const TREND_DAYS = 90;
-const TREND_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-
-function dateStrToMs(dateStr) {
-  // Midday UTC avoids a date being nudged into the wrong day by timezone rounding.
-  return new Date(dateStr + 'T12:00:00Z').getTime();
-}
-
-/** Confirmed live shape (2026-07): a GET to
- *  /history?symbol=XAU&startTimestamp=...&endTimestamp=...&groupBy=day
- *  returns a plain array, most-recent-first:
- *    [{ "day": "2026-07-08 00:00:00", "max_price": "4134.700200" }, ...]
- *  Note this is the day's HIGH, not a closing price — the free tier
- *  doesn't expose OHLC/close separately. Good enough for a trend line;
- *  worth knowing if the chart looks slightly more jagged/peaky than a
- *  close-based series would. Still tries other common field names/shapes
- *  defensively in case the response format differs for other query
- *  combinations or changes later. */
-function parseTrendHistoryResponse(data) {
-  const raw = Array.isArray(data) ? data
-    : Array.isArray(data?.history) ? data.history
-    : Array.isArray(data?.prices) ? data.prices
-    : Array.isArray(data?.data) ? data.data
-    : Array.isArray(data?.results) ? data.results
-    : [];
-
-  return raw.map(item => {
-    const date = item.day || item.date || item.timestamp || item.updatedAt || null;
-    const price = item.max_price ?? item.price ?? item.close ?? item.rate ?? item.value ?? null;
-    return (date && price != null) ? { date: String(date).slice(0, 10), usdPerOz: Number(price) } : null;
-  }).filter(Boolean);
-}
-
-async function fetchTrendBackfill(force) {
-  const cache = Settings.getJSON('trendCache', null);
-  const isFresh = cache && cache.fetchedAt && (Date.now() - cache.fetchedAt < TREND_CACHE_MAX_AGE_MS);
-  if (isFresh && !force) return;
-
-  try {
-    const endTimestamp = Math.floor(Date.now() / 1000);
-    const startTimestamp = endTimestamp - TREND_DAYS * 24 * 60 * 60;
-    const url = `https://api.gold-api.com/history?symbol=XAU&startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}&groupBy=day`;
-    const res = await fetch(url, { headers: { 'x-api-key': GOLD_API_KEY } });
-    if (!res.ok) throw new Error('Trend history fetch failed: HTTP ' + res.status);
-    const data = await res.json();
-    const points = parseTrendHistoryResponse(data);
-    if (!points.length) throw new Error('Trend history response had no recognizable data points');
-    Settings.set('trendCache', { fetchedAt: Date.now(), days: TREND_DAYS, points, source: 'gold-api.com' });
-  } catch (err) {
-    console.error('Trend backfill failed — falling back to in-app-only history.', err);
-    // Deliberately don't clear an existing cache on failure; a stale-but-valid
-    // backfill is still more useful than none until the next successful fetch.
-  }
-}
-
-/** Collapses multiple same-day points down to one (the latest reading of
- *  that day). Without this, a device that happened to check the price 10
- *  times today gets 10x the statistical weight of a device that checked
- *  once — same real prices, different averages/volatility, different
- *  Price Context label, purely from check frequency rather than anything
- *  real about the market. This also makes "N days of data" actually mean
- *  N calendar days rather than N data points (which could exceed the
- *  window size entirely, e.g. "58 days of data" inside a 30-day window —
- *  a real bug found via a live cross-device comparison, not a hypothetical). */
-function collapseToOnePerDay(points) {
-  const byDay = new Map();
-  points.forEach(p => {
-    const dayKey = new Date(p.t).toISOString().slice(0, 10);
-    const existing = byDay.get(dayKey);
-    if (!existing || p.t > existing.t) byDay.set(dayKey, p);
-  });
-  return Array.from(byDay.values()).sort((a, b) => a.t - b.t);
-}
-
-/** Combines the (rarely-fetched) backfill with the (frequently-updated) local
- *  in-app history: backfill covers everything before your first local check,
- *  local history covers everything from then on — so there's never a
- *  duplicate or conflicting point for the same day. Collapsed to one point
- *  per day afterward (see collapseToOnePerDay) so check frequency doesn't
- *  bias the statistics, and so this is as consistent as possible across
- *  devices without needing a backend to hold shared state. */
-/** Combines the (rarely-fetched, device-independent) backfill with the
- *  (frequently-updated, per-device) local check-in history.
- *
- *  IMPORTANT — this precedence was wrong until now: the old version used
- *  local history for every day from a device's *first-ever local check*
- *  onward, and backfill only for days before that. That meant two devices
- *  could disagree about which *source* represents the same calendar day —
- *  a long-used device would source, say, "12 days ago" from its own local
- *  reading, while a fresh device would source that same day from
- *  gold-api.com's real daily high. Different lineage for the same day,
- *  even after de-duplicating same-day points (Increment 10), meaning two
- *  devices could still legitimately disagree.
- *
- *  Fixed: backfill is now authoritative for every day it covers, since
- *  it's the same shared source on every device (modulo up to ~24h of
- *  cache staleness). Local history only fills in the gap *newer* than the
- *  most recent backfill point — typically just "today," or "today and
- *  yesterday" if the backfill hasn't refreshed in a while. This is the
- *  closest two independent, backend-free devices can get to agreeing on
- *  history without a shared server computing it once for everyone. */
-function getMergedHistory() {
-  const local = Settings.getJSON('history', []);
-  const cache = Settings.getJSON('trendCache', null);
-  const backfill = ((cache && cache.points) || []).map(p => ({ t: dateStrToMs(p.date), usd: p.usdPerOz }));
-
-  if (!backfill.length) return collapseToOnePerDay(local);
-
-  const latestBackfillT = Math.max(...backfill.map(p => p.t));
-  const newerLocal = local.filter(p => p.t > latestBackfillT);
-  return collapseToOnePerDay([...backfill, ...newerLocal]);
-}
-
-/* ----------------------------------------------------------------------------
-   PRICE CONTEXT (Increment 7 — replaces the old flat-threshold Buy Signal)
-
-   Deliberately reframed per the trust review: not "AI," not a prediction —
-   a statistical read on where today sits relative to its own recent
-   history, with volatility-adjusted thresholds instead of fixed
-   percentages, confidence tied to real data coverage, and a track record
-   that only shows itself when there's an honest sample size behind it.
----------------------------------------------------------------------------- */
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function dailyChanges(points) {
-  const changes = [];
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1].usd, cur = points[i].usd;
-    if (prev) changes.push((cur - prev) / prev * 100);
-  }
-  return changes;
-}
-
-function stddev(arr) {
-  if (arr.length < 2) return null;
-  const mean = arr.reduce((s, x) => s + x, 0) / arr.length;
-  const variance = arr.reduce((s, x) => s + (x - mean) ** 2, 0) / arr.length;
-  return Math.sqrt(variance);
-}
-
-function windowPoints(hist, endT, days) {
-  const start = endT - days * DAY_MS;
-  return hist.filter(p => p.t >= start && p.t < endT);
-}
-
-/** Positive deltaPct = today is BELOW that window's average (a dip).
- *  z scales that gap by the window's own recent volatility, so the same
- *  raw % move reads as "notable" in a calm month and "typical" in a wild
- *  one, instead of one fixed cutoff for both. Falls back to null (not a
- *  guess) when there isn't enough data to compute volatility honestly. */
-function zScoreFor(hist, endT, days, currentUsd) {
-  const win = windowPoints(hist, endT, days);
-  if (win.length < 3) return null;
-  const avg = win.reduce((s, p) => s + p.usd, 0) / win.length;
-  const sd = stddev(dailyChanges(win));
-  const deltaPct = ((avg - currentUsd) / avg) * 100;
-  return { avg, deltaPct, z: (sd && sd > 0) ? deltaPct / sd : null, coverage: win.length };
-}
-
-function bandFromZ(z, deltaPct) {
-  // Falls back to flat % thresholds only when volatility genuinely can't be
-  // computed (too little data) — not the primary path, a safety net.
-  if (z == null) {
-    if (deltaPct > 3) return 'notably_below';
-    if (deltaPct > 1.5) return 'mildly_below';
-    if (deltaPct < -2) return 'notably_above';
-    if (deltaPct < -1) return 'mildly_above';
-    return 'typical';
-  }
-  if (z > 1.5) return 'notably_below';
-  if (z > 0.5) return 'mildly_below';
-  if (z < -1.5) return 'notably_above';
-  if (z < -0.5) return 'mildly_above';
-  return 'typical';
-}
-
-const BAND_META = {
-  notably_below: { label: 'Notably below recent range', cls: 'good' },
-  mildly_below:  { label: 'Mildly below recent range',  cls: 'good' },
-  typical:       { label: 'Typical range',               cls: 'neutral' },
-  mildly_above:  { label: 'Mildly above recent range',   cls: 'bad' },
-  notably_above: { label: 'Notably above recent range',  cls: 'bad' },
-  mixed:         { label: 'Mixed',                        cls: 'neutral' }
-};
-const BAND_ORDER = ['notably_below', 'mildly_below', 'typical', 'mildly_above', 'notably_above'];
-
-/** Confluence, not a single cherry-picked horizon: if the 7-day and 30-day
- *  reads agree on direction, that agreement is the (stronger) label. If
- *  they disagree — a sharp short-term dip inside a longer uptrend, say —
- *  the honest output is "Mixed," stated plainly, not forced into one side. */
-function combineHorizons(b7, b30) {
-  if (!b7 || !b30) return b30 || b7 || 'typical';
-  const i7 = BAND_ORDER.indexOf(b7), i30 = BAND_ORDER.indexOf(b30);
-  const sameSide = (i7 <= 1 && i30 <= 1) || (i7 >= 3 && i30 >= 3) || (i7 === 2 && i30 === 2);
-  if (!sameSide) return 'mixed';
-  return Math.abs(i7 - 2) > Math.abs(i30 - 2) ? b7 : b30;
-}
-
-/** Confidence is earned from real data coverage and freshness, not asserted.
- *  A read built on 90 real backfilled days is trustworthy in a way a read
- *  built on 4 days of local-only history isn't, even if the arithmetic is
- *  identical — this is what actually distinguishes the two. */
-function computePriceContextConfidence(hist) {
-  const daysOfData = windowPoints(hist, Date.now(), 30).length;
-  const cache = Settings.getJSON('trendCache', null);
-  const hasBackfill = !!(cache && cache.points && cache.points.length);
-  let tier = 'low';
-  if (hasBackfill && daysOfData >= 20) tier = 'high';
-  else if (daysOfData >= 7) tier = 'medium';
-  return { tier, daysOfData, hasBackfill };
-}
-
-/** Only renders a number when there's an honest sample behind it. Scans
- *  every point in history that has enough trailing data to classify AND
- *  enough future data to check the outcome; keeps only points that landed
- *  in the same band as today; reports how many were higher 7 days later.
- *  Below MIN_TRACK_RECORD_SAMPLE, this deliberately returns null — a
- *  missing number is more honest than a percentage built on 2 or 3
- *  instances dressed up as evidence. */
-const MIN_TRACK_RECORD_SAMPLE = 5;
-
-function computeTrackRecord(hist, currentBand) {
-  if (currentBand === 'typical' || currentBand === 'mixed') return null;
-  const outcomes = [];
-  for (let i = 0; i < hist.length; i++) {
-    const d = hist[i];
-    const z = zScoreFor(hist, d.t, 30, d.usd);
-    if (!z) continue;
-    if (bandFromZ(z.z, z.deltaPct) !== currentBand) continue;
-    const future = hist.find(p => p.t >= d.t + 7 * DAY_MS);
-    if (!future) continue;
-    outcomes.push(future.usd > d.usd);
-  }
-  if (outcomes.length < MIN_TRACK_RECORD_SAMPLE) return null;
-  const higherCount = outcomes.filter(Boolean).length;
-  const historyDays = hist.length > 1 ? Math.round((hist[hist.length - 1].t - hist[0].t) / DAY_MS) : 0;
-  return { sampleSize: outcomes.length, higherPct: Math.round((higherCount / outcomes.length) * 100), historyDays };
-}
-
-function computePriceContext() {
-  if (!lastResult) return null;
-  const hist = getMergedHistory();
-  const now = Date.now();
-  const currentUsd = lastResult.usdPerOz;
-
-  const z7 = zScoreFor(hist, now, 7, currentUsd);
-  const z30 = zScoreFor(hist, now, 30, currentUsd);
-  const z90 = zScoreFor(hist, now, 90, currentUsd);
-  if (!z7 && !z30) return null;
-
-  const b7 = z7 ? bandFromZ(z7.z, z7.deltaPct) : null;
-  const b30 = z30 ? bandFromZ(z30.z, z30.deltaPct) : null;
-  const band = combineHorizons(b7, b30);
-  const confidence = computePriceContextConfidence(hist);
-  const trackRecord = confidence.tier !== 'low' ? computeTrackRecord(hist, band) : null;
-
-  return {
-    band, meta: BAND_META[band],
-    today: currentUsd,
-    delta7: z7 ? z7.deltaPct : null, avg7: z7 ? z7.avg : null,
-    delta30: z30 ? z30.deltaPct : null, avg30: z30 ? z30.avg : null,
-    delta90: z90 ? z90.deltaPct : null, avg90: z90 ? z90.avg : null,
-    confidence, trackRecord,
-    freshnessMin: Math.round((now - lastResult.timestamp) / 60000)
-  };
-}
 
 /** Converts a USD/troy-oz figure (today's price or a trailing average) into
  *  a per-gram price in the given currency, using TODAY's FX rate and
@@ -625,17 +390,20 @@ function renderPriceContext() {
   const card = $('priceContextCard');
   if (!card) return;
   const personaClass = getPersona() === 'investor' ? ' detail-forward' : '';
-  const ctx = computePriceContext();
+  const ctx = lastSignal;
 
   if (!ctx) {
     // Always visible with a calm, honest state instead of display:none —
     // matches the comparison teaser's always-visible loading pattern, so
-    // the two don't pop in at different times on a cold load. Genuinely
-    // "not enough history yet" gets the same message as "still loading" —
-    // both are honest, and neither overclaims a signal that isn't there.
+    // the two don't pop in at different times on a cold load. Two
+    // genuinely different reasons get two different messages now that the
+    // signal comes from the Worker: still waiting on the first fetch, vs.
+    // the fetch was tried and failed. Neither overclaims a signal that
+    // isn't actually there — see fetchSignal()'s comment for why there's
+    // no client-side fallback computation for this specific case.
     card.className = 'price-context-card neutral' + personaClass;
-    $('priceContextLabel').textContent = lastResult ? 'Building price context' : "Reading today's price context…";
-    $('priceContextNumbers').textContent = lastResult ? 'Still gathering enough history for a confident read.' : '';
+    $('priceContextLabel').textContent = signalAttempted ? 'Price context unavailable' : "Reading today's price context…";
+    $('priceContextNumbers').textContent = signalAttempted ? 'Could not reach the signal service — try again shortly.' : '';
     $('priceContextChips').innerHTML = '';
     $('priceContextConfidence').textContent = '';
     $('priceContextTrack').style.display = 'none';
@@ -660,8 +428,9 @@ function renderPriceContext() {
   ].join('');
 
   const confMeta = { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' };
+  const freshnessMin = Math.round((Date.now() - ctx.computedAt) / 60000);
   $('priceContextConfidence').textContent =
-    `${confMeta[ctx.confidence.tier]} · ${ctx.confidence.daysOfData} days of data · Updated ${ctx.freshnessMin}m ago`;
+    `${confMeta[ctx.confidence.tier]} · ${ctx.confidence.daysOfData} days of data · Signal updated ${freshnessMin}m ago`;
 
   const trackEl = $('priceContextTrack');
   if (ctx.trackRecord) {
@@ -870,7 +639,6 @@ function alertLabel(a) {
 
 function evaluateAlerts(snapshot) {
   const alerts = getAlerts();
-  const hist = getMergedHistory();
   const triggeredNow = [];
   let changed = false;
 
@@ -880,7 +648,14 @@ function evaluateAlerts(snapshot) {
     let message = '';
 
     if (a.type === 'drop_vs_avg') {
-      const avg = rollingAverage(hist, 30);
+      // Increment 14 — reads the same 30-day average Price Context shows,
+      // computed once by the Worker, instead of a separate local rolling
+      // average. One source of truth for "the 30-day average" across the
+      // whole app, and no alert can fire from a value the signal itself
+      // wouldn't agree with. If the Worker hasn't been reached yet
+      // (lastSignal null), this alert type simply doesn't evaluate this
+      // round rather than falling back to a locally-computed guess.
+      const avg = lastSignal ? lastSignal.avg30 : null;
       const p = snapshot.prices[a.currency];
       if (avg && p) {
         const usdEquivalent = snapshot.usdPerOz; // compare in USD terms, currency-agnostic
@@ -966,7 +741,7 @@ function renderAll() {
   renderPurchases();
   renderAlerts();
   renderNotificationHealth();
-  renderTrend(getMergedHistory());
+  renderTrend(lastSignal ? lastSignal.history : []);
   renderComparison();
   renderLog();
   renderLastUpdated();
@@ -1548,12 +1323,11 @@ function renderAlerts() {
 
 function renderTrend(hist) {
   if (!hist.length) return;
-  const cache = Settings.getJSON('trendCache', null);
-  const hasBackfill = !!(cache && cache.points && cache.points.length);
+  // Increment 14 — hist always comes from the Worker's signal now, so
+  // there's no more local-checks-vs-backfill distinction to label
+  // differently; it's one consistent source for everyone.
   const spanDays = hist.length > 1 ? Math.max(1, Math.round((hist[hist.length - 1].t - hist[0].t) / 86400000)) : 0;
-  $('trendDays').textContent = spanDays > 0
-    ? (hasBackfill ? `${spanDays}-day history (gold-api.com + live)` : `${spanDays}-day history (${hist.length} checks)`)
-    : 'building history...';
+  $('trendDays').textContent = spanDays > 0 ? `${spanDays}-day history (gold-api.com)` : 'building history...';
 
   const points = hist.slice(-90);
   const svg = $('sparkline');
@@ -2233,15 +2007,8 @@ function loadSettingsIntoForm() {
 
   if (lastResult) renderAll();
 
+  // fetchGoldPrice() triggers fetchSignal() internally once the live price
+  // resolves (Increment 14) — no separate backfill step needed here anymore.
   fetchGoldPrice();
   scheduleNext();
-
-  // Trend backfill (Increment 5) — fire-and-forget, cached for 24h. Runs
-  // after the first render so the app is usable immediately; once it
-  // resolves, re-render the views that read merged history so the
-  // authentic 90-day trend/Price Context appear without waiting for a reload.
-  fetchTrendBackfill().then(() => {
-    renderTrend(getMergedHistory());
-    renderPriceContext();
-  });
 })();
