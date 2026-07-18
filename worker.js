@@ -18,16 +18,20 @@
  * of app.js's computePriceContext() engine (Increment 7). Behavior is
  * meant to match exactly; only WHERE it runs has changed.
  *
- * RETAIL-PRICE ACCUMULATION (new): every refresh also writes today's
- * 22K retail price (INR and SAR) into a permanent, never-expiring KV
- * record — see accumulateRetailHistory() below. Not exposed via any
- * endpoint yet, and not surfaced anywhere in the app yet. This exists
- * purely so the data starts existing now rather than later: retail
- * history has no equivalent of gold-api.com's spot backfill — it can
- * only ever start accumulating from whatever day this first runs, so
- * every day this isn't running is a day of history that's gone for
- * good. Deciding how (or whether) to surface it is a separate,
- * deliberately deferred decision — this is accumulation-only.
+ * RETAIL-PRICE ACCUMULATION & RETAIL CONTEXT SIGNAL: every refresh writes
+ * today's 22K retail price (INR and SAR) into a permanent, never-expiring
+ * KV record (accumulateRetailHistory()) and computes a second signal from
+ * it — same z-score/band/confidence/track-record engine as spot, just fed
+ * retail data (computeRetailSignals()) — attached to /api/signal's
+ * response as `retail: { INR: {...}, SAR: {...} }`. Always both
+ * currencies, regardless of any user's primary-currency setting: this
+ * data exists for cross-border (NRI) comparison, which only makes sense
+ * with both visible together. Uses representative default premiums
+ * (14% India / 4% Saudi, matching sw.js's background-notification
+ * defaults), NOT any individual user's actual settings — the client is
+ * responsible for stating that caveat plainly, same as every other
+ * "at today's rate" / "using representative assumptions" disclosure
+ * already in this app.
  *
  * Requires (see deployment notes for how to set these up):
  *   GOLD_API_KEY   Secret — the gold-api.com key. Lives here now,
@@ -182,9 +186,38 @@ async function accumulateRetailHistory(env, usdPerOz, fx) {
     // No expirationTtl — this is meant to persist and grow indefinitely,
     // unlike the "signal" key's 1-hour cache.
     await env.SIGNAL_KV.put('retail_history', JSON.stringify(existing));
+    return existing;
   } catch (err) {
     console.error('Retail history accumulation failed (non-fatal):', err);
+    return null;
   }
+}
+
+/** Retail Context (Increment 16) — a second signal parallel to spot's
+ *  Price Context, but comparing today's REPRESENTATIVE retail price
+ *  against its own trailing averages, per tracked currency. This is
+ *  deliberately NOT a rewritten engine: z-scores and bands are
+ *  unit-agnostic (they operate on percentage deltas of whatever series
+ *  they're given), so this just maps retail_history's {t, price} points
+ *  to the {t, usd} shape computeSignal() already expects and calls the
+ *  exact same function spot uses. Zero new math to verify — the only
+ *  new code here is the reshaping and the history-stripping below.
+ *  `history` is stripped from each currency's result before returning:
+ *  retail_history has no TTL and grows forever, and there's no retail
+ *  sparkline built yet to justify shipping that whole array in every
+ *  /api/signal response, every hour, indefinitely. */
+function computeRetailSignals(historyByCurrency) {
+  const result = {};
+  Object.keys(RETAIL_TRACK).forEach(code => {
+    const series = historyByCurrency[code];
+    if (!series || !series.length) { result[code] = null; return; }
+    const hist = series.map(p => ({ t: p.t, usd: p.price }));
+    const currentVal = hist[hist.length - 1].usd;
+    const signal = computeSignal(hist, currentVal);
+    delete signal.history;
+    result[code] = signal;
+  });
+  return result;
 }
 
 async function refreshSignal(env) {
@@ -196,14 +229,18 @@ async function refreshSignal(env) {
   const signal = computeSignal(history, currentUsd);
   signal.computedAt = Date.now();
 
-  await env.SIGNAL_KV.put('signal', JSON.stringify(signal), { expirationTtl: SIGNAL_TTL_SECONDS });
-
-  // Fire-and-forget alongside the signal write — today's retail price
-  // needs the same FX rates /api/price already fetches, so pull those
-  // here too rather than adding a third redundant fetch.
+  // Retail Context (Increment 16): needs the same FX rates the retail
+  // accumulation step uses, so fetch once here and feed both — no reason
+  // for a third redundant FX fetch alongside /api/price's and this one.
   const fxRes = await fetch('https://open.er-api.com/v6/latest/USD');
   const fxData = await fxRes.json();
-  await accumulateRetailHistory(env, currentUsd, fxData.rates || {});
+  const retailHistoryByCurrency = await accumulateRetailHistory(env, currentUsd, fxData.rates || {});
+  // Accumulation failure is non-fatal (logged inside accumulateRetailHistory)
+  // — retail signal just comes back null per currency, same "unavailable,
+  // not a guess" convention the client already uses for spot Price Context.
+  signal.retail = retailHistoryByCurrency ? computeRetailSignals(retailHistoryByCurrency) : null;
+
+  await env.SIGNAL_KV.put('signal', JSON.stringify(signal), { expirationTtl: SIGNAL_TTL_SECONDS });
 
   return signal;
 }

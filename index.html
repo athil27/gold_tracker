@@ -44,6 +44,38 @@
         </details>
       </div>
 
+      <div class="price-context-card retail-context-card" id="retailContextCard">
+        <div class="price-context-label">Retail context</div>
+        <div class="subnote" style="margin-top:2px;">Uses a representative retail premium, not your own settings.</div>
+
+        <div class="retail-context-row" id="retailRowINR">
+          <div class="retail-context-row-top">
+            <span class="retail-context-country">India (22K)</span>
+            <span class="retail-context-band-label" id="retailLabelINR">--</span>
+          </div>
+          <div class="price-context-numbers" id="retailNumbersINR"></div>
+          <div class="price-context-chips" id="retailChipsINR"></div>
+        </div>
+
+        <div class="retail-context-row" id="retailRowSAR">
+          <div class="retail-context-row-top">
+            <span class="retail-context-country">Saudi (22K)</span>
+            <span class="retail-context-band-label" id="retailLabelSAR">--</span>
+          </div>
+          <div class="price-context-numbers" id="retailNumbersSAR"></div>
+          <div class="price-context-chips" id="retailChipsSAR"></div>
+        </div>
+
+        <details id="retailContextDisclosure">
+          <summary>Confidence, track record & methodology ▾</summary>
+          <div class="price-context-confidence" id="retailConfidenceINR"></div>
+          <div class="price-context-track" id="retailTrackINR" style="display:none;"></div>
+          <div class="price-context-confidence" id="retailConfidenceSAR" style="margin-top:10px;"></div>
+          <div class="price-context-track" id="retailTrackSAR" style="display:none;"></div>
+          <p class="subnote">Same statistical comparison as Price Context above — 7/30/90-day trailing averages, volatility-adjusted, not a prediction and not AI-generated — applied to a representative retail price (spot plus a typical premium: 14% India, 4% Saudi) instead of spot alone.</p>
+        </details>
+      </div>
+
       <div class="section cmp-teaser" id="cmpTeaserSection">
         <div class="row" style="border-bottom:none; padding:2px 0;">
           <span id="cmpTeaserText" style="font-size:13px;">Loading India vs Saudi comparison...</span>
@@ -476,7 +508,7 @@
       Background checks run on an in-page timer — reliable while this tab/app is open or backgrounded normally,
       but very aggressive OEM battery managers (some Xiaomi/Oppo/Vivo builds) can delay it unless you allow
       unrestricted battery usage for this app/browser.
-      <br><br>Gold Tracker · v1.15 (Increment 15)
+      <br><br>Gold Tracker · v1.16 (Increment 16)
     </div>
 
   </div>

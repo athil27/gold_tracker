@@ -328,6 +328,7 @@ async function fetchSignal() {
   }
   signalAttempted = true;
   renderPriceContext();
+  renderRetailContext();
   renderTrend(lastSignal ? lastSignal.history : []);
 }
 
@@ -436,6 +437,66 @@ function renderPriceContext() {
   if (ctx.trackRecord) {
     trackEl.style.display = '';
     trackEl.textContent = `Of the last ${ctx.trackRecord.historyDays} days, spot read this way on ${ctx.trackRecord.sampleSize} other occasions — price was higher a week later in ${ctx.trackRecord.higherPct}% of those.`;
+  } else {
+    trackEl.style.display = 'none';
+  }
+}
+
+/** Retail Context (Increment 16) — a second signal parallel to Price
+ *  Context above, but comparing today's REPRESENTATIVE retail price
+ *  (spot plus a typical premium — 14% India, 4% Saudi, NOT the user's
+ *  own settings) against its own trailing averages, per country. Always
+ *  shows both India and Saudi regardless of primary currency: this data
+ *  exists specifically for cross-border (NRI) comparison, which only
+ *  makes sense with both currencies visible together.
+ *
+ *  Reuses the server-side signal object as-is — `ctx.today`/`avgN` here
+ *  are already per-gram retail prices in that currency (unlike spot's
+ *  `ctx.today`, which is USD/oz and needs usdOzToGram() conversion), so
+ *  this renders more directly than renderPriceContext() does. */
+function renderRetailContext() {
+  const retail = lastSignal ? lastSignal.retail : null;
+  renderRetailRow('INR', retail ? retail.INR : null);
+  renderRetailRow('SAR', retail ? retail.SAR : null);
+}
+
+function renderRetailRow(code, ctx) {
+  const row = $('retailRow' + code);
+  if (!row) return;
+  const labelEl = $('retailLabel' + code);
+  const numbersEl = $('retailNumbers' + code);
+  const chipsEl = $('retailChips' + code);
+  const confEl = $('retailConfidence' + code);
+  const trackEl = $('retailTrack' + code);
+
+  if (!ctx) {
+    row.className = 'retail-context-row neutral';
+    labelEl.textContent = signalAttempted ? 'Unavailable' : 'Loading…';
+    numbersEl.textContent = '';
+    chipsEl.innerHTML = '';
+    confEl.textContent = '';
+    trackEl.style.display = 'none';
+    return;
+  }
+
+  row.className = 'retail-context-row ' + ctx.meta.cls;
+  labelEl.textContent = ctx.meta.label;
+  numbersEl.textContent = ctx.avg30 != null
+    ? `${money(code, ctx.today)}/g · 30-day avg ${money(code, ctx.avg30)}/g`
+    : `${money(code, ctx.today)}/g`;
+
+  chipsEl.innerHTML = [
+    ctx.delta7 != null ? `<span class="reason-chip">7d: ${fmtDelta(ctx.delta7)}</span>` : '',
+    ctx.delta30 != null ? `<span class="reason-chip">30d: ${fmtDelta(ctx.delta30)}</span>` : '',
+    ctx.delta90 != null ? `<span class="reason-chip">90d: ${fmtDelta(ctx.delta90)}</span>` : ''
+  ].join('');
+
+  const confMeta = { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' };
+  confEl.textContent = `${confMeta[ctx.confidence.tier]} · ${ctx.confidence.daysOfData} days of data`;
+
+  if (ctx.trackRecord) {
+    trackEl.style.display = '';
+    trackEl.textContent = `Of the last ${ctx.trackRecord.historyDays} days, retail read this way on ${ctx.trackRecord.sampleSize} other occasions — price was higher a week later in ${ctx.trackRecord.higherPct}% of those.`;
   } else {
     trackEl.style.display = 'none';
   }
@@ -732,6 +793,7 @@ function evaluateAlerts(snapshot) {
 function renderAll() {
   renderDashboard();
   renderPriceContext();
+  renderRetailContext();
   renderPriceCards();
   renderCurrencyChips();
   renderKaratChips();
@@ -1764,9 +1826,9 @@ function wireEmptyStates() {
 ---------------------------------------------------------------------------- */
 
 const PERSONA_ORDER = {
-  buyer:    { priceContextCard: 0, cmpTeaserSection: 1, portfolioBlock: 2, landedCostCard: 3 },
-  investor: { priceContextCard: 0, portfolioBlock: 1, cmpTeaserSection: 2, landedCostCard: 3 },
-  nri:      { cmpTeaserSection: 0, landedCostCard: 1, priceContextCard: 2, portfolioBlock: 3 }
+  buyer:    { priceContextCard: 0, retailContextCard: 1, cmpTeaserSection: 2, portfolioBlock: 3, landedCostCard: 4 },
+  investor: { priceContextCard: 0, retailContextCard: 1, portfolioBlock: 2, cmpTeaserSection: 3, landedCostCard: 4 },
+  nri:      { cmpTeaserSection: 0, landedCostCard: 1, priceContextCard: 2, retailContextCard: 3, portfolioBlock: 4 }
 };
 
 function getPersona() {
@@ -1781,6 +1843,7 @@ function applyPersonaOrder() {
   });
   renderLandedCost();
   renderPriceContext();
+  renderRetailContext();
 
   // Homepage review, P2: trend-watching is more central to how the
   // Investor persona uses the app, so default that accordion open for them

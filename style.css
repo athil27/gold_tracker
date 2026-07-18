@@ -275,6 +275,19 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
 .price-context-card.detail-forward .price-context-confidence,
 .price-context-card.detail-forward .price-context-track{ color:var(--text); }
 
+/* ---------- retail context card (Increment 16) — reuses price-context-card's
+   base chrome (border, radius, padding) but has two independent band
+   assessments (India, Saudi) instead of one, so band coloring applies
+   per-row rather than to the whole card. ---------- */
+.retail-context-row{ margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+.retail-context-row:first-of-type{ margin-top:10px; padding-top:10px; }
+.retail-context-row-top{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+.retail-context-country{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+.retail-context-band-label{ font-size:13px; font-weight:700; color:var(--gold); }
+.retail-context-row.good .retail-context-band-label{ color:var(--green); }
+.retail-context-row.bad .retail-context-band-label{ color:var(--red); }
+.retail-context-row.neutral .retail-context-band-label{ color:var(--gold); }
+
 /* ---------- India vs Saudi teaser (Home) — full detail lives in Portfolio ---------- */
 .cmp-teaser .row{ align-items:center; }
 
