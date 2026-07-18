@@ -76,9 +76,18 @@ input:checked + .slider::before{transform:translateX(18px);}
 .cmp-val.negative{color:var(--red);}
 
 /* ---------- portfolio ---------- */
+/* Increment 15: each group is now a <details> — title + gain/loss (the two
+   numbers actually glanced at) stay visible; avg buy/current price/invested/
+   current value collapse behind a tap. Multiple groups (e.g. 22K-INR,
+   24K-INR, 22K-SAR) used to mean 5+ always-open rows each; this was the
+   actual source of Portfolio summary's density, not the six top-level
+   sections (three of which were already collapsible). */
 .portfolio-group{border-bottom:1px solid var(--border); padding:10px 0;}
 .portfolio-group:last-child{border-bottom:none;}
-.portfolio-group-title{font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px;}
+.portfolio-group-summary{display:flex; justify-content:space-between; align-items:center; gap:10px; cursor:pointer; list-style:none;}
+.portfolio-group-summary::-webkit-details-marker{display:none;}
+.portfolio-group[open] .portfolio-group-summary{margin-bottom:10px;}
+.portfolio-group-title{font-size:13px; font-weight:700; color:var(--text);}
 
 /* ---------- progress bar ---------- */
 .progress-wrap{background:#111; border-radius:10px; height:10px; overflow:hidden; margin:8px 0;}
@@ -227,10 +236,12 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
 .tier-karat{color:var(--gold); font-weight:700; font-size:12px;}
 
 /* ---------- price context card (Increment 7 — Home, above portfolio teaser)
-   Replaces the old flat-label Buy Signal: a label, the actual numbers,
-   reason chips per horizon, a confidence/freshness line, and an optional
-   bounded track record — trust built from showing the work, not asserting
-   a verdict. ---------- */
+   Replaces the old flat-label Buy Signal: a label, the actual numbers, and
+   reason chips per horizon are the always-visible decision tier; confidence,
+   freshness, and the optional bounded track record live one tap down inside
+   the disclosure (Increment 15) — trust built from showing the work, not
+   asserting a verdict, without stacking every layer of that work on Home by
+   default. ---------- */
 .price-context-card{
   border-radius:14px; padding:14px 16px; margin-bottom:14px;
   border:1px solid var(--border); background:#141414;
@@ -250,12 +261,15 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
    than reading as two more full-width lines. */
 .price-context-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
 .reason-chip{ font-size:11px; color:var(--text); background:#000; border:1px solid var(--border); border-radius:10px; padding:3px 9px; font-variant-numeric:tabular-nums; }
-.price-context-confidence{ font-size:11px; color:var(--muted); margin-top:6px; }
-/* Track record is the deepest tier — separated by a rule, easy to skip. */
+/* Confidence + track record moved inside the disclosure (Increment 15) —
+   they're meta-information about the label above, not part of the
+   always-visible decision tier, so they're one tap away instead of two
+   more permanent lines on every Home load. */
+.price-context-confidence{ font-size:11px; color:var(--muted); }
 .price-context-track{ font-size:11px; color:var(--muted); margin-top:8px; line-height:1.5; padding-top:8px; border-top:1px solid var(--border); }
 .price-context-card details{ margin-top:10px; padding:8px 10px; }
 .price-context-card details summary{ font-size:12px; }
-.price-context-card details p{ margin:0; }
+.price-context-card details p{ margin:8px 0 0; }
 /* Investor persona: un-mute the meta tier, since this persona is more
    likely to actually read confidence/track-record than glance past them. */
 .price-context-card.detail-forward .price-context-confidence,

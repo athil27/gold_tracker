@@ -981,14 +981,16 @@ function renderPortfolio() {
     const glText = g.gainLoss === null ? 'current price unavailable'
       : `${g.gainLoss >= 0 ? '+' : ''}${money(g.currency, g.gainLoss)} (${g.gainLoss >= 0 ? '+' : ''}${g.gainLossPct.toFixed(1)}%)`;
     return `
-      <div class="portfolio-group">
-        <div class="portfolio-group-title">${g.karat}K · ${g.currency} <span class="subnote">(${g.count} purchase${g.count > 1 ? 's' : ''}, ${fmt(g.grams)}g)</span></div>
+      <details class="portfolio-group">
+        <summary class="portfolio-group-summary">
+          <span class="portfolio-group-title">${g.karat}K · ${g.currency} <span class="subnote">(${g.count} purchase${g.count > 1 ? 's' : ''}, ${fmt(g.grams)}g)</span></span>
+          <span class="cmp-val ${glClass}">${glText}</span>
+        </summary>
         <div class="cmp-row"><span>Avg buy price</span><span class="cmp-val">${money(g.currency, g.avgBuyPrice)}/g</span></div>
         <div class="cmp-row"><span>Current price</span><span class="cmp-val">${g.currentPricePerGram !== null ? money(g.currency, g.currentPricePerGram) + '/g' : '--'}</span></div>
         <div class="cmp-row"><span>Invested</span><span class="cmp-val">${money(g.currency, g.invested)}</span></div>
         <div class="cmp-row"><span>Current value</span><span class="cmp-val">${g.currentValue !== null ? money(g.currency, g.currentValue) : '--'}</span></div>
-        <div class="cmp-row"><span>Gain / loss</span><span class="cmp-val ${glClass}">${glText}</span></div>
-      </div>
+      </details>
     `;
   }).join('');
 }
@@ -1789,10 +1791,15 @@ function applyPersonaOrder() {
   // Product review, P1: the Buyer persona is the most likely to open the
   // app rarely with high intent ("should I buy today"), so the one thing
   // this persona most needs isn't the label, it's the reasoning behind
-  // it — default that disclosure open. Every other persona still gets it
-  // closed, same as before.
+  // it — default that disclosure open.
+  // Increment 15: confidence + track record moved inside this same
+  // disclosure (previously always-visible, just muted for non-Investor
+  // personas via detail-forward styling). Investor gets it open by default
+  // too, so this persona's prior "always see confidence/track" experience
+  // is preserved rather than newly hidden behind a tap. NRI/no-persona
+  // still get it closed, same as before.
   const disclosure = $('priceContextDisclosure');
-  if (disclosure) disclosure.open = (getPersona() === 'buyer');
+  if (disclosure) disclosure.open = (getPersona() === 'buyer' || getPersona() === 'investor');
 }
 
 function openPersonaOnboarding() {
