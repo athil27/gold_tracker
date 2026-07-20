@@ -1503,7 +1503,18 @@ const TABS = ['home', 'portfolio', 'alerts', 'more'];
 function goToTab(tab, focusForm) {
   TABS.forEach(t => {
     const panel = $('tab-' + t);
-    if (panel) panel.style.display = (t === tab) ? '' : 'none';
+    if (!panel) return;
+    if (t === tab) {
+      panel.style.display = '';
+      // Restart the CSS animation even if this panel already has the class
+      // from a previous visit — remove, force a reflow, re-add. Without the
+      // reflow the browser sees no class change and just skips replaying it.
+      panel.classList.remove('tab-enter');
+      void panel.offsetWidth;
+      panel.classList.add('tab-enter');
+    } else {
+      panel.style.display = 'none';
+    }
   });
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tab);

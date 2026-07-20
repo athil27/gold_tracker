@@ -147,6 +147,7 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
   flex:1; background:none; border:none; color:var(--muted); cursor:pointer;
   display:flex; flex-direction:column; align-items:center; gap:2px;
   padding:10px 4px 8px; font-size:10px; position:relative;
+  transition:color 0.15s ease;
 }
 .tab-btn.active{color:var(--gold);}
 .tab-icon{font-size:18px; line-height:1;}
@@ -155,8 +156,22 @@ body{padding-bottom:76px;} /* clears the fixed tab bar */
   border-radius:50%; background:var(--red);
 }
 
-/* ---------- tab panels ---------- */
+/* ---------- tab panels ----------
+   goToTab() toggles display:none/'' (still needed — CSS can't animate a
+   display change itself), then adds .tab-enter to the panel becoming
+   visible. Base state has no animation so this only plays on that class,
+   and goToTab() forces a reflow before re-adding it so switching back to
+   a tab you were just on still replays the animation instead of no-op'ing
+   silently the second time. */
 .tab-panel{animation:none;}
+.tab-panel.tab-enter{animation:tabFadeIn 0.2s ease;}
+@keyframes tabFadeIn{
+  from{ opacity:0; transform:translateY(6px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+@media (prefers-reduced-motion: reduce){
+  .tab-panel.tab-enter{animation:none;}
+}
 
 /* ---------- holdings line (Homepage review — replaces the hero portfolio
    value block; a single quiet line, not the biggest thing on the screen) ---------- */
